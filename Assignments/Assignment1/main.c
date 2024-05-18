@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdbool.h>
 
 #include "loader.h"
 
@@ -8,10 +9,11 @@ unsigned char DMEM[xMEM_SIZE];
 FILE* input_file;
 
 int main(int argc, char* argv[]) {
-    if (argc > 1)
+    if (argc > 1) //support for dragging a file onto the executable to start
     {
-        printf("File provided to loader (%s), loading now..", argv[2]);
-        load(input_file, argv[2]);
+        printf("File provided to loader (%s), loading now..\n", argv[1]);
+        load(input_file, argv[1]);
+        menu();
     }
     else
     {
