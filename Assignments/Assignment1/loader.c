@@ -21,19 +21,24 @@ void menu() {
     do
     {
         printf("Enter a command, Load (L), Display Memory (M), Quit (Q): ");
-        scanf(" %c", &command);
-        if (tolower(command) == 'l')
+        if(scanf(" %c", &command) != 1)
+        {
+            while (getchar() != '\n'); //clear input buffer
+            continue;
+        }
+        command = (char)tolower(command);
+        if (command == 'l')
         {
             char input_string[MAX_RECORD_LEN];
             printf("Enter name of file to load:");
-            scanf("%s", input_string);
+            scanf("%70s", input_string);
             load(input_file, input_string);
         }
-        else if (tolower(command) == 'm')
+        else if (command == 'm')
         {
             display_data();
         }
-        getchar();
+        while(getchar() != '\n'); //another buffer clear to ensure menu works as intended
     }
     while (tolower(command) != 'q');
     printf("Exiting Loader...");
@@ -63,27 +68,29 @@ void load(FILE *open_file, char *file_name) {
         }
         else
         {
-            if(record_check(s_record))
+            if(!record_check(s_record))
             {
-                clean_data(s_record);
+                return;
             }
             else
             {
-                return;
+                clean_data(s_record);
+
             }
         }
     }
 }
 
 bool record_check(char * s_record){
+
     for (int i = 1; i < strlen(s_record); ++i)
     {
-        if(!isalnum(s_record[i]))
+        if(!isalnum(s_record[i])) //check for non alphanumerics ' ', '?', '\n' etc..
         {
             printf("Unexpected value {%d} in s_record, possibly corrupt value.. Aborting load\n", s_record[i]);
             return false;
         }
-        if(toupper(s_record[i]) > 'F' && (s_record[i] != '\n' && s_record[i] !='\0') )
+        if(toupper(s_record[i]) > 'F' && (s_record[i] != '\n' && s_record[i] !='\0') ) //check for the rest of the alphabet
         {
             printf("Unexpected hex character {%c} in s_record possibly corrupt value.. Aborting load\n", s_record[i]);
             return false;
@@ -99,21 +106,20 @@ void clean_data(char *s_record) {
     type = CHAR_TO_INT(s_record[TYPE_LOCATION]);
 
     char raw_length[SIZE_OF_RAW_LENGTH] = {0}; //byte pair version of length
-    strncpy(raw_length, s_record + LENGTH_LOCATION, 2);
+    strncpy(raw_length, s_record + LENGTH_LOCATION, BYTE_SIZE);
     processed_length = (int) strtol(raw_length, NULL, CONVERT_FROM_HEX);
 
     char raw_address[SIZE_OF_RAW_ADDRESS] = {0};
-    strncpy(raw_address, s_record + ADDRESS_LOCATION, 4);
+    strncpy(raw_address, s_record + ADDRESS_LOCATION, BYTE_SIZE*2);
     processed_address = (int) strtol(raw_address, NULL, CONVERT_FROM_HEX);
 
     char raw_checksum[SIZE_OF_RAW_CHECKSUM] = {0};
     //copy checksum from end of s_record into it's own array
-    strncpy(raw_checksum, s_record + (strlen(s_record) - 2), 2);
+    strncpy(raw_checksum, s_record + (strlen(s_record) - BYTE_SIZE), BYTE_SIZE);
     //create an array of bytes to hold the integer version of our data
-    unsigned char *parsed_data = (unsigned char *) calloc(processed_length,
-                                                          sizeof(unsigned char));
+    unsigned char *parsed_data = (unsigned char *) calloc(processed_length,sizeof(unsigned char));
     //parse the data, array passed by reference because copying is wasteful in this case
-    parse_data(s_record + PREAMBLE, &parsed_data, processed_length);
+    parse_data(s_record + PREAMBLE, &parsed_data);
     //verify our data values pair with the checksum provided by the assembler
     if (test_checksum(parsed_data, raw_length, raw_address, raw_checksum,
                       processed_length))
@@ -126,12 +132,10 @@ void clean_data(char *s_record) {
     }
     memset(s_record, '\0', MAX_RECORD_LEN);
     //free(parsed_data);
-    //free(data_string);
 
 }
 
-void store_in_memory(int type, int record_address, int record_length,
-                     unsigned char *parsed_data) {
+void store_in_memory(int type, int record_address, int record_length, unsigned char *parsed_data) {
     switch (type)
     {
         case 0:
@@ -151,7 +155,7 @@ void store_in_memory(int type, int record_address, int record_length,
                    record_address);
             break;
         default:
-            printf("Unknown Type");
+            printf("Unknown Type {%d} check s_record", type);
             break;
     }
 }
@@ -206,7 +210,7 @@ void display_data() {
     }
 }
 
-void parse_data(char *string_data, unsigned char **converted_data, int data_length) {
+void parse_data(char *string_data, unsigned char **converted_data) {
     if (string_data == NULL) //check if the entire set of data is missing
     {
         printf("string passed to funciton to parse!\n");
@@ -219,37 +223,35 @@ void parse_data(char *string_data, unsigned char **converted_data, int data_leng
     }
     else
     {
-        char str_to_convert[2]; //buffer for converting pair of chars into one int value
+        char str_to_convert[BYTE_SIZE]; //buffer for converting pair of chars into one int value
         int data_index = 0; //track where we are in the converted data
-        for (int i = 0; i < strlen(string_data) - CHECKSUM_LENGTH; i += 2)
+        for (int i = 0; i < strlen(string_data) - CHECKSUM_LENGTH; i += BYTE_SIZE)
         {
             //copy 2 chars at a time into the conversion buffer
-            strncpy(str_to_convert, string_data + i, 2);
+            strncpy(str_to_convert, string_data + i, BYTE_SIZE);
             //store the into version in the converted buffer
-            (*converted_data)[data_index] = strtol(str_to_convert, NULL,
-                                                   CONVERT_FROM_HEX);
+            (*converted_data)[data_index] = strtol(str_to_convert, NULL,CONVERT_FROM_HEX);
             data_index++;
         }
     }
 
 }
-
+#define INITALIZE_TO_ZERO 0
 bool test_checksum(unsigned char *data, char *length_byte, char *address_bytes,
                    char *checksum_byte, int data_length) {
 
     bool rc = false;
-    unsigned char sum = 0;
+    unsigned char sum = INITALIZE_TO_ZERO;
     //convert length byte to unsigned char using strtol
     unsigned char lb = strtol(length_byte, NULL, CONVERT_FROM_HEX);
 
     unsigned char cb = strtol(checksum_byte, NULL, CONVERT_FROM_HEX);
     //we need to split the address into individual bytes instead of converting the two
-    char split[2];
-    memcpy(split, address_bytes, 2);
+    char split[BYTE_SIZE];
+    memcpy(split, address_bytes, BYTE_SIZE);
     unsigned char ab1 = strtol(split, NULL, CONVERT_FROM_HEX);
-    memcpy(split, address_bytes + 2, 2);
+    memcpy(split, address_bytes + BYTE_SIZE, BYTE_SIZE);
     unsigned char ab2 = strtol(split, NULL, CONVERT_FROM_HEX);
-
 
     sum = lb + ab1 + ab2;
     //sum up to the checksum
@@ -258,7 +260,7 @@ bool test_checksum(unsigned char *data, char *length_byte, char *address_bytes,
         sum += data[i];
     }
     printf("Check Value is %d\n", sum + cb);
-    if (sum + cb == 255)
+    if (sum + cb == VALID_CHECKSUM)
     {
         rc = true;
     }
