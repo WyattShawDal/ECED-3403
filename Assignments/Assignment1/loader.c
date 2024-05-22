@@ -21,12 +21,12 @@ void menu() {
     do
     {
         printf("Enter a command, Load (L), Display Memory (M), Quit (Q): ");
-        if(scanf(" %c", &command) != 1)
+        if (scanf(" %c", &command) != 1)
         {
             while (getchar() != '\n'); //clear input buffer
             continue;
         }
-        command = (char)tolower(command);
+        command = (char) tolower(command);
         if (command == 'l')
         {
             char input_string[MAX_RECORD_LEN];
@@ -36,9 +36,13 @@ void menu() {
         }
         else if (command == 'm')
         {
+#ifdef TWO_MEM_ARRAY
             display_data();
+#else
+            display_loader_memory();
+#endif
         }
-        while(getchar() != '\n'); //another buffer clear to ensure menu works as intended
+        while (getchar() != '\n'); //another buffer clear to ensure menu works as intended
     }
     while (tolower(command) != 'q');
     printf("Exiting Loader...");
@@ -60,37 +64,40 @@ void load(FILE *open_file, char *file_name) {
 
     while (fgets(s_record, MAX_RECORD_LEN, open_file))
     {
-        s_record[strcspn(s_record, "\n")] = 0;
+        s_record[strcspn(s_record, "\n")] = 0; //clear newline from EOL
         if (tolower(s_record[0]) != 's')
         {
-            printf("Unexpected value in .xme, check file input!\n");
+            printf("Unexpected value in .xme {%d}, check file input!\n", s_record[0]);
             //go to next line
         }
         else
         {
-            if(!record_check(s_record))
+            if (!record_check(s_record))
             {
+                //record contains invalid value abort loading
                 return;
             }
             else
             {
+                //record is good, now we can parse the data
                 clean_data(s_record);
 
             }
         }
     }
+    fclose(open_file);
 }
 
-bool record_check(char * s_record){
+bool record_check(char *s_record) {
 
     for (int i = 1; i < strlen(s_record); ++i)
     {
-        if(!isalnum(s_record[i])) //check for non alphanumerics ' ', '?', '\n' etc..
+        if (!isalnum(s_record[i])) //check for non alphanumerics ' ', '?', '\n' etc..
         {
             printf("Unexpected value {%d} in s_record, possibly corrupt value.. Aborting load\n", s_record[i]);
             return false;
         }
-        if(toupper(s_record[i]) > 'F' && (s_record[i] != '\n' && s_record[i] !='\0') ) //check for the rest of the alphabet
+        if (toupper(s_record[i]) > 'F' && (s_record[i] != '\n' && s_record[i] != '\0')) //check for the rest of the alphabet
         {
             printf("Unexpected hex character {%c} in s_record possibly corrupt value.. Aborting load\n", s_record[i]);
             return false;
@@ -100,42 +107,57 @@ bool record_check(char * s_record){
 }
 
 void clean_data(char *s_record) {
-    int processed_length;
+    if(s_record == NULL)
+    {
+        printf("No s_record provided, is NULL\n");
+        return;
+    }
+    unsigned char processed_length;
     int type;
     int processed_address;
     type = CHAR_TO_INT(s_record[TYPE_LOCATION]);
 
     char raw_length[SIZE_OF_RAW_LENGTH] = {0}; //byte pair version of length
     strncpy(raw_length, s_record + LENGTH_LOCATION, BYTE_SIZE);
-    processed_length = (int) strtol(raw_length, NULL, CONVERT_FROM_HEX);
+    processed_length = (unsigned char) strtol(raw_length, NULL, CONVERT_FROM_HEX);
 
     char raw_address[SIZE_OF_RAW_ADDRESS] = {0};
-    strncpy(raw_address, s_record + ADDRESS_LOCATION, BYTE_SIZE*2);
+    strncpy(raw_address, s_record + ADDRESS_LOCATION, BYTE_SIZE * 2);
     processed_address = (int) strtol(raw_address, NULL, CONVERT_FROM_HEX);
 
     char raw_checksum[SIZE_OF_RAW_CHECKSUM] = {0};
     //copy checksum from end of s_record into it's own array
     strncpy(raw_checksum, s_record + (strlen(s_record) - BYTE_SIZE), BYTE_SIZE);
     //create an array of bytes to hold the integer version of our data
-    unsigned char *parsed_data = (unsigned char *) calloc(processed_length,sizeof(unsigned char));
+    unsigned char *parsed_data = (unsigned char *) calloc(processed_length, sizeof(unsigned char));
+    if(parsed_data == NULL)
+    {
+        printf("Failed when allocating memory for parsed data, aborting load of s_record.\n");
+        return;
+    }
     //parse the data, array passed by reference because copying is wasteful in this case
     parse_data(s_record + PREAMBLE, &parsed_data);
     //verify our data values pair with the checksum provided by the assembler
-    if (test_checksum(parsed_data, raw_length, raw_address, raw_checksum,
+    if (test_checksum(parsed_data, processed_length, raw_address, raw_checksum,
                       processed_length))
     {
         store_in_memory(type, processed_address, processed_length, parsed_data);
     }
     else
     {
-        printf("Failed to verify checksum, possibly corrupt file, aborting load.\n");
+        printf("Failed to verify checksum, possibly corrupt file, aborting load of record.\n");
     }
     memset(s_record, '\0', MAX_RECORD_LEN);
-    //free(parsed_data);
+    if (parsed_data != NULL)
+    {
+        free(parsed_data);
+        parsed_data = NULL;
+    }
 
 }
 
 void store_in_memory(int type, int record_address, int record_length, unsigned char *parsed_data) {
+#ifdef TWO_MEM_ARRAY
     switch (type)
     {
         case 0:
@@ -150,26 +172,42 @@ void store_in_memory(int type, int record_address, int record_length, unsigned c
             printf("S2 Stored\n");
             break;
         case 9:
-            //memcpy(IMEM + record_address, parsed_data, record_length);
-            printf("File read successfully. Starting Addr = %04x\n",
-                   record_address);
+            printf("File read successfully. Starting Addr = %04x\n", record_address);
             break;
         default:
-            printf("Unknown Type {%d} check s_record", type);
+            printf("Unknown Type {%d} record not stored\n", type);
             break;
     }
+#else
+    if (type == 0)
+    {
+        printf("Loaded File: %s\n", parsed_data);
+    }
+    else if (type == 1 || type == 2)
+    {
+        memcpy(loader_memory[type-1].byte + record_address, parsed_data, record_length);
+        printf("S%d Stored\n", type);
+    }
+    else if (type == 9)
+    {
+        printf("Program starting Addr = %04x\n", record_address);
+    }
+    else
+    {
+        printf("Unknown Type {%d} record not stored\n", type);
+    }
+#endif
+
 }
 
+#ifdef TWO_MEM_ARRAY
 void display_data() {
-    char upper[SIZE_OF_USER_ADDRESS] = {0};
-    char lower[SIZE_OF_USER_ADDRESS] = {0};
+    int lower_lookup;
+    int upper_lookup;
     char mem_type;
     printf("Enter lower, upper, memory type (I/D)");
-    scanf("%4s %4s %c", lower, upper, &mem_type);
-    printf("Entered Memory bounds %s --> %s,", lower, upper);
-
-    int lower_lookup = (int) strtol(lower, NULL, CONVERT_FROM_HEX);
-    int upper_lookup = (int) strtol(upper, NULL, CONVERT_FROM_HEX);
+    scanf("%4x %4x %c", &lower_lookup, &upper_lookup, &mem_type);
+    printf("Entered Memory bounds %4x --> %4x,", lower_lookup, upper_lookup);
 
     if (tolower(mem_type) == 'i')
     {
@@ -180,6 +218,7 @@ void display_data() {
             {
                 printf("%04x: ", i);
             }
+            //print byte by byte of imem
             printf("%02x, ", IMEM[i]);
             if (i > lower_lookup && (i + 1) % MEMORY_LINE_LENGTH == 0)
             {
@@ -192,10 +231,12 @@ void display_data() {
         printf("Searching Data memory: \n");
         for (int i = lower_lookup; i < upper_lookup; ++i)
         {
+            // print starting address
             if (i % MEMORY_LINE_LENGTH == 0) //print starting address
             {
                 printf("%04x: ", i);
             }
+            //print byte by byte of dmem
             printf("%02x, ", DMEM[i]);
             if (i > lower_lookup &&
                 (i + 1) % MEMORY_LINE_LENGTH == 0) //newline after 16 bytes printed
@@ -209,60 +250,97 @@ void display_data() {
         printf("Unknown value entered\n");
     }
 }
+#else
+void display_loader_memory()
+{
+    int lower_lookup;
+    int upper_lookup;
+    char mem_type;
+    printf("Enter lower, upper, memory type (I/D)");
+    scanf("%4x %4x %c", &lower_lookup, &upper_lookup, &mem_type);
+    printf("Entered Memory bounds %4x --> %4x\n", lower_lookup, upper_lookup);
+
+    mem_type = toupper(mem_type) == 'I' ? INSTR : DATA;
+
+    //loop through loader memory from lower to upper bounds and print out the values
+    for (int i = lower_lookup; i < upper_lookup; ++i)
+    {
+        //insert address every 16 bytes
+        if (i % MEMORY_LINE_LENGTH == 0)
+        {
+            printf("%04x: ", i);
+        }
+        printf("%02x, ", loader_memory[mem_type].byte[i]);
+        if (i > lower_lookup && (i + 1) % MEMORY_LINE_LENGTH == 0)
+        {
+            //add spaces between the hex and ascii values
+            printf("       ");
+            //print ascii version of the 16 bytes inserting periods for none ascii characters
+            for (int j = i - MEMORY_LINE_LENGTH; j < i; ++j)
+            {
+                if (isprint(loader_memory[mem_type].byte[j]))
+                {
+                    printf("%c", loader_memory[mem_type].byte[j]);
+                }
+                else
+                {
+                    printf(".");
+                }
+            }
+            printf("\n");
+        }
+    }
+
+}
+#endif
 
 void parse_data(char *string_data, unsigned char **converted_data) {
-    if (string_data == NULL) //check if the entire set of data is missing
+    //check if the entire set of data is missing
+    if (string_data == NULL)
     {
-        printf("string passed to funciton to parse!\n");
-        return;
-    }
-    else if (strlen(string_data) % 2 != 0) //check if there is an extra or missing char
-    {
-        printf("\n");
+        printf("No string passed for function to parse!\n");
         return;
     }
     else
     {
-        char str_to_convert[BYTE_SIZE]; //buffer for converting pair of chars into one int value
-        int data_index = 0; //track where we are in the converted data
+        //buffer for converting a pair of chars into one int value
+        char str_to_convert[BYTE_SIZE];
+        //track where we are in the converted data
+        int data_index = 0;
         for (int i = 0; i < strlen(string_data) - CHECKSUM_LENGTH; i += BYTE_SIZE)
         {
             //copy 2 chars at a time into the conversion buffer
             strncpy(str_to_convert, string_data + i, BYTE_SIZE);
             //store the into version in the converted buffer
-            (*converted_data)[data_index] = strtol(str_to_convert, NULL,CONVERT_FROM_HEX);
+            (*converted_data)[data_index] = strtol(str_to_convert, NULL, CONVERT_FROM_HEX);
             data_index++;
         }
     }
 
 }
-#define INITALIZE_TO_ZERO 0
-bool test_checksum(unsigned char *data, char *length_byte, char *address_bytes,
-                   char *checksum_byte, int data_length) {
 
-    bool rc = false;
-    unsigned char sum = INITALIZE_TO_ZERO;
-    //convert length byte to unsigned char using strtol
-    unsigned char lb = strtol(length_byte, NULL, CONVERT_FROM_HEX);
+bool test_checksum(unsigned char *data, unsigned char length_byte, char *address_bytes, char *checksum_byte, int data_length) {
 
-    unsigned char cb = strtol(checksum_byte, NULL, CONVERT_FROM_HEX);
-    //we need to split the address into individual bytes instead of converting the two
-    char split[BYTE_SIZE];
-    memcpy(split, address_bytes, BYTE_SIZE);
-    unsigned char ab1 = strtol(split, NULL, CONVERT_FROM_HEX);
-    memcpy(split, address_bytes + BYTE_SIZE, BYTE_SIZE);
-    unsigned char ab2 = strtol(split, NULL, CONVERT_FROM_HEX);
+    unsigned char sum = 0;
+    //use length byte calculated in previous function to avoid repeating code
+    unsigned char lb = length_byte;
+    unsigned short address = strtol(address_bytes, NULL, CONVERT_FROM_HEX);
 
-    sum = lb + ab1 + ab2;
+    //calculate checksum value from the checksum byte
+    unsigned char processed_checksum = strtol(checksum_byte, NULL, CONVERT_FROM_HEX);
+    //sum values while extracting upper and lower bytes of address as mentioned in lab
+    sum = lb + (address & 0xFF) + ((address >> 8) & 0xFF);
     //sum up to the checksum
     for (int i = 0; i < data_length - CHECKSUM_LENGTH; ++i)
     {
         sum += data[i];
     }
-    printf("Check Value is %d\n", sum + cb);
-    if (sum + cb == VALID_CHECKSUM)
+#ifdef DEBUG
+    printf("Check Value is %d\n", sum + processed_checksum);
+#endif
+    if (sum + processed_checksum == VALID_CHECKSUM)
     {
-        rc = true;
+        return true;
     }
-    return rc;
+    return false;
 }

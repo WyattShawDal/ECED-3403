@@ -12,8 +12,13 @@
 
 #include "loader.h"
 
-unsigned char IMEM[xMEM_SIZE];
-unsigned char DMEM[xMEM_SIZE];
+#ifdef TWO_MEM_ARRAY
+unsigned char IMEM[BYTE_MEMORY_SIZE];
+unsigned char DMEM[BYTE_MEMORY_SIZE];
+#else
+Memory loader_memory[2];
+#endif
+
 
 FILE* input_file;
 
