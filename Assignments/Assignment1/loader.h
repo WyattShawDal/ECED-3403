@@ -4,6 +4,12 @@
 
 #ifndef ASSIGNMENT1_LOADER_H
 #define ASSIGNMENT1_LOADER_H
+#include <stdio.h>
+#include <ctype.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdbool.h>
+
 
 #define INSTR 0
 #define DATA 1
@@ -26,6 +32,11 @@
 #define SIZE_OF_RAW_CHECKSUM 3 //2 chars + NULL
 
 //#define TWO_MEM_ARRAY
+typedef enum
+{
+    I_MEMORY = 0,
+    D_MEMORY = 1,
+}MEMORY_TYPES;
 
 typedef union memory
 {

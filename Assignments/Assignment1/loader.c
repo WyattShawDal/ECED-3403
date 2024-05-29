@@ -6,14 +6,9 @@
  * A menu option, file loading, data parsing/storage, and display for verifying
  * laoding success.
  */
-#include <stdio.h>
-#include <ctype.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdbool.h>
 
 #include "loader.h"
-
+#include "decoder.h"
 #define CHAR_TO_INT(x) ((x)- '0')
 
 void menu() {
@@ -41,6 +36,10 @@ void menu() {
 #else
             display_loader_memory();
 #endif
+        }
+        else if(command == 'd')
+        {
+            decode_instruction();
         }
         while (getchar() != '\n'); //another buffer clear to ensure menu works as intended
     }
