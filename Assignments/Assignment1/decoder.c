@@ -14,7 +14,6 @@ void decode_instruction()
     //set starting address to the starting address of the instruction memory,
     //set by s9 record in loader
     short starting_addr = my_emulator.starting_address;
-    printf("Emulator instruction start at %4x\n", starting_addr);
     current_instruction.word = 0x0001;
     //not at end of instruction memory
     while(current_instruction.word != 0x0000)
@@ -33,6 +32,10 @@ void decode_instruction()
         else if(current_instruction.byte[MSB] >= 0x60 && current_instruction.byte[MSB] <= 0x79)
         {
             parse_move_block(current_instruction, starting_addr);
+        }
+        else
+        {
+            printf("%04X: NOT SUPPORTED = %04x\n", starting_addr, current_instruction.word);
         }
         starting_addr+= 2;
     }
@@ -88,13 +91,13 @@ void parse_reg_manip_block(instruction_data current_instruction, short starting_
         {
             printf("%04X: SWAP", starting_addr);
             unsigned char word_or_byte = 0;
-            printf("W/B = %d, CON = %d , DEST = R%d\n", word_or_byte, src_const, dest);
+            printf("W/B = %d, SRC = %d , DEST = R%d\n", word_or_byte, src_const, dest);
         }
         else
         {
             printf("%04X: MOV ", starting_addr);
             unsigned char word_or_byte = (current_instruction.byte[LSB] >> 6) & B0;
-            printf("W/B = %d, CON = %d , DEST = R%d\n", word_or_byte, src_const, dest);
+            printf("W/B = %d, SRC = %d , DEST = R%d\n", word_or_byte, src_const, dest);
         }
     }
     else if(val == BYTE_MANIP)
@@ -138,7 +141,7 @@ void parse_move_block(instruction_data current_instruction, short starting_addr)
         //extract bytes to be moved from bits 10-3 and destination from bits 2-0
         unsigned char bits_to_move = (current_instruction.word >> 3) & 0xFF;
         unsigned char dest = current_instruction.word & EXTRACT_LOW_THREE_BITS;
-        printf("BYTES = %02x, DEST = R%d\n", bits_to_move, dest);
+        printf("BYTE = %02x, DEST = R%d\n", bits_to_move, dest);
     }
 
 }
