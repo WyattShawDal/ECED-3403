@@ -5,7 +5,6 @@
 #ifndef ASSIGNMENT1_DECODER_H
 #define ASSIGNMENT1_DECODER_H
 #include "loader.h"
-
 typedef enum
 {
     B7 = 0x80,
@@ -30,7 +29,6 @@ typedef struct emulator_data
     short operands;
     short starting_address;
 }Emulator;
-
 
 void decode_instruction();
 void parse_arithmetic_block(instruction_data current_instruction, short starting_addr);

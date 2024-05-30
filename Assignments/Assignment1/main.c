@@ -26,7 +26,7 @@ FILE* input_file;
 
 int main(int argc, char* argv[]) {
     //for clion debugging output
-    //setbuf(stdout, 0);
+    setbuf(stdout, 0);
     //support for dragging a file onto the executable to start the program
     if (argc > 1)
     {

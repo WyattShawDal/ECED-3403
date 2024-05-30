@@ -328,11 +328,11 @@ void parse_data(char *string_data, unsigned char **converted_data) {
             //copy 2 chars at a time into the conversion buffer
             strncpy(str_to_convert, string_data + i, BYTE_SIZE);
             //store the into version in the converted buffer
-            (*converted_data)[data_index] = strtol(str_to_convert, NULL, CONVERT_FROM_HEX);
+            (*converted_data)[data_index] = strtoul(str_to_convert, NULL, CONVERT_FROM_HEX);
             data_index++;
         }
     }
-
+    return;
 }
 
 bool test_checksum(unsigned char *data, unsigned char length_byte, char *address_bytes, char *checksum_byte, int data_length) {
