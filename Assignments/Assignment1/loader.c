@@ -320,7 +320,7 @@ void parse_data(char *string_data, unsigned char **converted_data) {
     else
     {
         //buffer for converting a pair of chars into one int value
-        char str_to_convert[BYTE_SIZE];
+        char str_to_convert[BYTE_SIZE + 1];
         //track where we are in the converted data
         int data_index = 0;
         for (int i = 0; i < strlen(string_data) - CHECKSUM_LENGTH; i += BYTE_SIZE)
