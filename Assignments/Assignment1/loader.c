@@ -11,14 +11,17 @@
 #include "decoder.h"
 #define CHAR_TO_INT(x) ((x)- '0')
 
+
+extern Emulator my_emulator;
 void menu() {
     char command = '\0';
     do
     {
-        printf("Enter a command, Load (L), Display Memory (M), Quit (Q): ");
+        printf("Enter a command, Load (L), Display Memory (M), Decode (D),  Quit (Q): ");
         if (scanf(" %c", &command) != 1)
         {
-            while (getchar() != '\n'); //clear input buffer
+            //clearing the input buffer
+            while (getchar() != '\n');
             continue;
         }
         command = (char) tolower(command);
@@ -41,7 +44,7 @@ void menu() {
         {
             decode_instruction();
         }
-        while (getchar() != '\n'); //another buffer clear to ensure menu works as intended
+        while (getchar() != '\n'); //another buffer clear to ensure menu doesn't loop
     }
     while (tolower(command) != 'q');
     printf("Exiting Loader...");
@@ -64,6 +67,7 @@ void load(FILE *open_file, char *file_name) {
     while (fgets(s_record, MAX_RECORD_LEN, open_file))
     {
         s_record[strcspn(s_record, "\n")] = 0; //clear newline from EOL
+        s_record[strcspn(s_record, "\r")] = 0; //clear carriage return from EOL
         if (tolower(s_record[0]) != 's')
         {
             printf("Unexpected value in .xme {%d}, check file input!\n", s_record[0]);
@@ -189,6 +193,7 @@ void store_in_memory(int type, int record_address, int record_length, unsigned c
     }
     else if (type == 9)
     {
+        my_emulator.starting_address = (short)record_address;
         printf("Program starting Addr = %04x\n", record_address);
     }
     else
@@ -261,6 +266,17 @@ void display_loader_memory()
 
     mem_type = toupper(mem_type) == 'I' ? INSTR : DATA;
 
+    if(lower_lookup < 0 || lower_lookup > BYTE_MEMORY_SIZE)
+    {
+        printf("Invalid lower bound, clamping to 0\n");
+        lower_lookup = 0;
+    }
+    else if(upper_lookup < 0 || upper_lookup > BYTE_MEMORY_SIZE )
+    {
+        printf("Invalid upper bound, clamping to 0xFFF\n");
+        upper_lookup = 0xFFFF;
+    }
+
     //loop through loader memory from lower to upper bounds and print out the values
     for (int i = lower_lookup; i < upper_lookup; ++i)
     {
@@ -277,6 +293,7 @@ void display_loader_memory()
             //print ascii version of the 16 bytes inserting periods for none ascii characters
             for (int j = i - MEMORY_LINE_LENGTH; j < i; ++j)
             {
+                //check if it's a printable character
                 if (isprint(loader_memory[mem_type].byte[j]))
                 {
                     printf("%c", loader_memory[mem_type].byte[j]);

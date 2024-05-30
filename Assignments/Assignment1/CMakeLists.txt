@@ -7,4 +7,5 @@ add_executable(Assignment1 main.c
         loader.c
         loader.h
         decoder.c
-        decoder.h)
+        decoder.h
+        instruction_table.h)

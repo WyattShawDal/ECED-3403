@@ -10,7 +10,9 @@
 #include <stdio.h>
 #include <stdbool.h>
 
+#include "decoder.h"
 #include "loader.h"
+
 
 #ifdef TWO_MEM_ARRAY
 unsigned char IMEM[BYTE_MEMORY_SIZE];
@@ -19,11 +21,12 @@ unsigned char DMEM[BYTE_MEMORY_SIZE];
 Memory loader_memory[2];
 #endif
 
-
+Emulator my_emulator;
 FILE* input_file;
 
 int main(int argc, char* argv[]) {
-    if (argc > 1) //support for dragging a file onto the executable to start
+    //support for dragging a file onto the executable to start the program
+    if (argc > 1)
     {
         printf("File provided to loader (%s), loading now..\n", argv[1]);
         load(input_file, argv[1]);
