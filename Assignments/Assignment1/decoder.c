@@ -35,7 +35,14 @@ void decode_instruction()
         }
         else
         {
-            printf("%04X: NOT SUPPORTED = %04x\n", starting_addr, current_instruction.word);
+            if(current_instruction.word == 0x0000)
+            {
+                printf("End of Instruction Memory, no actions to take.\n");
+            }
+            else
+            {
+                printf("%04X: NOT SUPPORTED = %04x\n", starting_addr, current_instruction.word);
+            }
         }
         starting_addr+= 2;
     }
@@ -89,7 +96,7 @@ void parse_reg_manip_block(instruction_data current_instruction, short starting_
         unsigned char src_const = (my_emulator.operands >> 3) & EXTRACT_LOW_THREE_BITS, dest = my_emulator.operands & EXTRACT_LOW_THREE_BITS;
         if((current_instruction.byte[LSB] & B7) == B7)
         {
-            printf("%04X: SWAP", starting_addr);
+            printf("%04X: SWAP ", starting_addr);
             unsigned char word_or_byte = 0;
             printf("W/B = %d, SRC = %d , DEST = R%d\n", word_or_byte, src_const, dest);
         }
