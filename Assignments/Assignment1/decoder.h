@@ -28,7 +28,7 @@ typedef struct emulator_data
 {
     short opcode;
     short operands;
-    short starting_address;
+    short program_counter;
 }Emulator;
 
 

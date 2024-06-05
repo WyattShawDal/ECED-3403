@@ -17,7 +17,7 @@ void menu() {
     char command = '\0';
     do
     {
-        printf("Enter a command, Load (L), Display Memory (M), Decode (D),  Quit (Q): ");
+        printf("Enter a command, Load (L), Display Memory (M), Debug Menu (D),  Quit (Q): ");
         if (scanf(" %c", &command) != 1)
         {
             //clearing the input buffer
@@ -42,7 +42,8 @@ void menu() {
         }
         else if(command == 'd')
         {
-            decode_instruction();
+            debugger_menu();
+//            decode_instruction();
         }
         while (getchar() != '\n'); //another buffer clear to ensure menu doesn't loop
     }
@@ -193,7 +194,8 @@ void store_in_memory(int type, int record_address, int record_length, unsigned c
     }
     else if (type == 9)
     {
-        my_emulator.program_counter = (short)record_address;
+        my_emulator.starting_address = (short)record_address;
+        my_emulator.program_counter = my_emulator.starting_address;
         printf("Program starting Addr = %04x\n", record_address);
     }
     else
