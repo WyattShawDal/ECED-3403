@@ -8,7 +8,7 @@
  */
 
 #include "loader.h"
-#include "decoder.h"
+#include "emulation.h"
 #define CHAR_TO_INT(x) ((x)- '0')
 
 

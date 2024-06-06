@@ -1,13 +1,11 @@
 //
 // Created by wyatt on 2024-05-29.
 //
-#include "decoder.h"
+#include "emulation.h"
 #include "instruction_table.h"
-
 extern Emulator my_emulator;
 
-#define MSB 1
-#define LSB 0
+
 
 void debugger_menu()
 {
@@ -50,20 +48,19 @@ void debugger_menu()
     }while (tolower(command) != 'q');
 }
 
-#define REGISTER 0
-#define CONSTANT 1
+
 void print_registers()
 {
     for (int i = 0; i < REGFILE; ++i)
     {
-        printf("R%d = %04x\n", i, my_emulator.reg_file[REGISTER][i]);
+        printf("R%d = %04x\n", i, my_emulator.reg_file[REGISTER][i].word);
     }
 }
 void modify_registers()
 {
     unsigned short reg_num = 0;
     unsigned int value= 0;
-    printf("Hello! Enter Register Number (Decimal): ");
+    printf("Enter Register Number (Decimal): R");
     scanf("%hd", &reg_num);
     if(reg_num < 0 || reg_num > 7)
     {
@@ -79,7 +76,7 @@ void modify_registers()
         }
         else
         {
-            my_emulator.reg_file[REGISTER][reg_num] = value;
+            my_emulator.reg_file[REGISTER][reg_num].word = value;
             printf("Updated Register Value\n");
         }
     }
@@ -154,8 +151,9 @@ void decode_instruction()
         {
             printf("%04X: NOT SUPPORTED = %04x\n", my_emulator.program_counter, current_instruction.word);
         }
+        execute(&my_emulator);
         my_emulator.program_counter+= 2;
-        my_emulator.reg_file[REGISTER][PROG_COUNTER] = my_emulator.program_counter;
+        my_emulator.reg_file[REGISTER][PROG_COUNTER].word = my_emulator.program_counter;
     }while(current_instruction.word != 0x0000 && my_emulator.program_counter < my_emulator.breakpoint);
     my_emulator.program_counter = my_emulator.starting_address;
     return;
@@ -169,17 +167,23 @@ void parse_arithmetic_block(instruction_data current_instruction, short starting
 {
     //my_emulator.opcode = current_instruction.word & UPPER_BYTE_MASK;
     unsigned char extracted_opcode = current_instruction.byte[MSB];
-    my_emulator.opcode = current_instruction.byte[MSB];
+    //my_emulator.opcode = current_instruction.byte[MSB];
     my_emulator.operands = current_instruction.byte[LSB];
     //extract the bottom nibble of the opcode
-    short instruction_table_index = my_emulator.opcode & LOWER_NIBBLE_MASK;
+    short instruction_table_index = extracted_opcode & LOWER_NIBBLE_MASK;
     if(arithmetic_instruction_table[instruction_table_index].opcode)
     {
+        my_emulator.opcode = arithmetic_instruction_table[instruction_table_index].execution_opcode;
         printf("%4X: %s ", starting_addr,
                arithmetic_instruction_table[instruction_table_index].instruction_name);
 
         unsigned char register_or_constant = my_emulator.operands >> 7, word_or_byte = ((my_emulator.operands >> 6) & B0),
         source_const = (my_emulator.operands >> 3) & EXTRACT_LOW_THREE_BITS, dest = my_emulator.operands & EXTRACT_LOW_THREE_BITS;
+        my_emulator.my_operands.arithmetic_operands.dest = dest;
+        my_emulator.my_operands.arithmetic_operands.register_or_constant = register_or_constant;
+        my_emulator.my_operands.arithmetic_operands.word_or_byte = word_or_byte;
+        my_emulator.my_operands.arithmetic_operands.source_const = source_const;
+
         if(register_or_constant == CONSTANT)
         {
             printf("R/C = %d, W/B = %d, CON = %d , DEST = R%d\n", register_or_constant, word_or_byte, source_const, dest);

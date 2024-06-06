@@ -6,6 +6,12 @@
 #define ASSIGNMENT1_DECODER_H
 #include "loader.h"
 
+#define REGISTER 0
+#define CONSTANT 1
+#define MSB 1
+#define LSB 0
+
+
 typedef enum
 {
     add,
@@ -47,6 +53,19 @@ typedef enum
     EXTRACT_LOW_TWO_BITS = 0x03,
 }BITVALS;
 
+typedef struct nibbles
+{
+    unsigned short nib1 : 4;
+    unsigned short nib2 : 4;
+    unsigned short nib3 : 4;
+    unsigned short nib4 : 4;
+}nibbles;
+
+typedef union word_nibbles {
+    unsigned short word;
+    struct nibbles nibbles;
+}word_nibbles;
+
 typedef union instruction_data
 {
     unsigned char byte[2];
@@ -77,8 +96,22 @@ typedef union operands
     reg_manip reg_manip_operands;
     move move_operands;
 }operands;
-#define REG_CON 2
 
+
+typedef struct program_status_word
+{
+    unsigned short previous_prio :3;
+    unsigned short unused :4;
+    unsigned short fault :1;
+    unsigned short current_prio :3;
+    unsigned short overflow :1;
+    unsigned short sleep :1;
+    unsigned short negative :1;
+    unsigned short zero :1;
+    unsigned short carry :1;
+}program_status_word;
+
+#define REG_CON 2
 #define REGFILE 8
 typedef struct emulator_data
 {
@@ -91,11 +124,14 @@ typedef struct emulator_data
     unsigned int clock;
     unsigned int starting_address;
     bool is_single_step;
-    unsigned short reg_file[REG_CON][REGFILE];
+    instruction_data reg_file[REG_CON][REGFILE];
     unsigned int breakpoint;
+    program_status_word psw;
 }Emulator;
-
 void debugger_menu();
+
+
+//decoding
 void print_registers();
 void modify_registers();
 void modify_memory_locations();
@@ -104,6 +140,11 @@ void decode_instruction();
 void parse_arithmetic_block(instruction_data current_instruction, short starting_addr);
 void parse_reg_manip_block(instruction_data current_instruction, short starting_addr);
 void parse_move_block(instruction_data current_instruction, short starting_addr);
+
+
+//executions
+void update_psw(unsigned short result, Emulator *emulator);
+void execute(Emulator *emulator);
 
 
 extern Memory loader_memory[2];
