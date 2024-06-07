@@ -39,6 +39,18 @@ typedef enum
 
 }OPCODES;
 
+typedef enum REGISTERS
+{
+    GRP0 = 0,
+    GPR1 = 1,
+    GPR2 = 2,
+    GPR3 = 3,
+    BASE_PTR = 4,
+    LINK_REG = 5,
+    STACK_PTR = 6,
+    PROG_COUNTER = 7,
+}REGISTERS;
+
 typedef enum
 {
     B7 = 0x80,

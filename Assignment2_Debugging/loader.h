@@ -25,8 +25,10 @@
 #define VALID_CHECKSUM 255
 #define BYTE_MEMORY_SIZE 1<<16
 #define WORD_MEMORY_SIZE 1<<15
-
-
+#define REG_CON 2
+#define REGFILE 8
+#define REGISTER 0
+#define CONSTANT 1
 #define SIZE_OF_RAW_LENGTH 3 //2 chars + NULL
 #define SIZE_OF_RAW_ADDRESS 5 //4 chars + NULL
 #define SIZE_OF_RAW_CHECKSUM 3 //2 chars + NULL

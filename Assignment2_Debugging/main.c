@@ -22,6 +22,7 @@ Memory loader_memory[2];
 
 #define REG_CON 2
 #define REGFILE 8
+
 Emulator my_emulator;
 
 FILE* input_file;
@@ -47,7 +48,7 @@ int main(int argc, char* argv[]) {
 
 void init_emulator()
 {
-    my_emulator.breakpoint = BYTE_MEMORY_SIZE;
+    my_emulator.breakpoint =  (BYTE_MEMORY_SIZE) - 1;;
     instruction_data reg_file[REG_CON][REGFILE] = {
             {
                     { .word = 0 }, { .word = 0 }, { .word = 0 }, { .word = 0 },
