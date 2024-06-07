@@ -124,13 +124,13 @@ void set_breakpoint()
 {
     //temporay breakpoint to check if it is valid before setting it
     int temp_breakpoint;
-    printf("Enter a breakpoint (must be >%04x): ", my_emulator.reg_file[REGISTER][PROG_COUNTER]);
+    printf("Enter a breakpoint (must be >%04x): ", my_emulator.reg_file[REGISTER][PROG_COUNTER].word);
     scanf("%x",&temp_breakpoint);
     //if the breakpoint is not even, make it even for word addressing
     temp_breakpoint = (temp_breakpoint % 2 == 0) ? temp_breakpoint : temp_breakpoint - 1;
     //check if program has passed breakpoint already
     //NOTE future implementations could allow this if desired
-    if(temp_breakpoint < my_emulator.reg_file[REGISTER][PROG_COUNTER])
+    if(temp_breakpoint < my_emulator.reg_file[REGISTER][PROG_COUNTER].word)
     {
         printf("Breakpoint has already been passed\n");
     }
@@ -147,38 +147,38 @@ void decode_instruction()
     do
     {
         //shift starting address right for word addressing since word memory is half the size of byte memory
-        current_instruction.word = loader_memory[I_MEMORY].word[my_emulator.reg_file[REGISTER][PROG_COUNTER] >> 1];
+        current_instruction.word = loader_memory[I_MEMORY].word[my_emulator.reg_file[REGISTER][PROG_COUNTER].word >> 1];
         if(current_instruction.byte[MSB] < 0x4C && current_instruction.byte[MSB] >= 0x40)
         {
             //opcode is only the MSB for this group
-            parse_arithmetic_block(current_instruction, my_emulator.reg_file[REGISTER][PROG_COUNTER]);
-            my_emulator.reg_file[REGISTER][PROG_COUNTER]+= 2;
+            parse_arithmetic_block(current_instruction, my_emulator.reg_file[REGISTER][PROG_COUNTER].word);
+            my_emulator.reg_file[REGISTER][PROG_COUNTER].word+= 2;
         }
         else if (current_instruction.byte[MSB] <= 0x4D && current_instruction.byte[MSB] >= 0x4C)
         {
-            parse_reg_manip_block(current_instruction, my_emulator.reg_file[REGISTER][PROG_COUNTER]);
-            my_emulator.reg_file[REGISTER][PROG_COUNTER]+= 2;
+            parse_reg_manip_block(current_instruction, my_emulator.reg_file[REGISTER][PROG_COUNTER].word);
+            my_emulator.reg_file[REGISTER][PROG_COUNTER].word+= 2;
         }
         else if(current_instruction.byte[MSB] >= 0x60 && current_instruction.byte[MSB] <= 0x79)
         {
-            parse_move_block(current_instruction, my_emulator.reg_file[REGISTER][PROG_COUNTER]);
-            my_emulator.reg_file[REGISTER][PROG_COUNTER]+= 2;
+            parse_move_block(current_instruction, my_emulator.reg_file[REGISTER][PROG_COUNTER].word);
+            my_emulator.reg_file[REGISTER][PROG_COUNTER].word+= 2;
         }
         else
         {
             if(current_instruction.word != 0x0000) {
-                printf("%04X: NOT SUPPORTED = %04x\n", my_emulator.reg_file[REGISTER][PROG_COUNTER], current_instruction.word);
-                my_emulator.reg_file[REGISTER][PROG_COUNTER]+= 2;
+                printf("%04X: NOT SUPPORTED = %04x\n", my_emulator.reg_file[REGISTER][PROG_COUNTER].word, current_instruction.word);
+                my_emulator.reg_file[REGISTER][PROG_COUNTER].word+= 2;
 
             }
             else {
-                printf("%04X: END OF CURRENT INSTRUCTIONS.\n", my_emulator.reg_file[REGISTER][PROG_COUNTER]);
+                printf("%04X: END OF CURRENT INSTRUCTIONS.\n", my_emulator.reg_file[REGISTER][PROG_COUNTER].word);
             }
 
         }
         execute(&my_emulator);
         //halt decoding at the breakpoint value, as the next stage will execute this decoded instruction, so halting here halts before the execution
-    }while(current_instruction.word != 0x0000 && my_emulator.reg_file[REGISTER][PROG_COUNTER]<= my_emulator.breakpoint);
+    }while(current_instruction.word != 0x0000 && my_emulator.reg_file[REGISTER][PROG_COUNTER].word <= my_emulator.breakpoint);
 
 
 

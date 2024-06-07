@@ -5,9 +5,9 @@ set(CMAKE_C_STANDARD 11)
 
 add_executable(Assignment2_Debugging main.c
         loader.c
+        decoding.c
+        execution.c
         loader.h
-        decoder.c
-        decoder.h
+        emulation.h
         instruction_table.h
-        decoder.c
 )

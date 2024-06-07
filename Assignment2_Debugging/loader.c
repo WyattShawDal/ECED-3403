@@ -196,7 +196,7 @@ void store_in_memory(int type, int record_address, int record_length, unsigned c
     else if (type == 9)
     {
         my_emulator.starting_address = (short)record_address;
-        my_emulator.reg_file[REGISTER][PROG_COUNTER] = my_emulator.starting_address;
+        my_emulator.reg_file[REGISTER][PROG_COUNTER].word = my_emulator.starting_address;
         printf("Program starting Addr = %04x\n", my_emulator.starting_address);
     }
     else
