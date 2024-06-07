@@ -10,8 +10,8 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-#include "decoder.h"
 #include "loader.h"
+#include "decoder.h"
 
 
 #ifdef TWO_MEM_ARRAY
@@ -23,8 +23,7 @@ Memory loader_memory[2];
 
 #define REG_CON 2
 #define REGFILE 8
-unsigned short reg_file[REG_CON][REGFILE] = {{0, 0, 0, 0, 0, 0, 0, 0},
-                                             {0, 1, 2, 4, 8, 16, 32, -1}};
+
 Emulator my_emulator;
 FILE* input_file;
 
@@ -49,7 +48,8 @@ int main(int argc, char* argv[]) {
 
 void init_emulator()
 {
-    my_emulator.breakpoint = BYTE_MEMORY_SIZE;
+    //initalize breakpoint to the end of the memory space
+    my_emulator.breakpoint = (BYTE_MEMORY_SIZE) - 1;
     unsigned short reg_file[2][8] = {{0, 0, 0, 0, 0, 0, 0, 0},
                              {0, 1, 2, 4, 8, 16, 32, -1}};
     memcpy(my_emulator.reg_file, reg_file, sizeof (unsigned short) * REG_CON * REGFILE);

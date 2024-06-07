@@ -11,10 +11,11 @@ extern Emulator my_emulator;
 
 void debugger_menu()
 {
-    printf("Entered Debugger Menu\n");
+    //debugger menu notification
+    printf("                ====== Entered Debug Menu ======\n");
     char command;
     do {
-        printf("Print Decode (D), Print Register(R), Modify Register Values (T), Modify Memory Value (U),Set Breakpoint Value (Y), Quit (Q)\n");
+        printf("Print Decode (D), Print Registers (R), Modify Register Values (T), Modify Memory Value (U),Set Breakpoint Value (Y), Quit (Q)\n");
         if (scanf(" %c", &command) != 1)
         {
             //clearing the input buffer
@@ -50,8 +51,7 @@ void debugger_menu()
     }while (tolower(command) != 'q');
 }
 
-#define REGISTER 0
-#define CONSTANT 1
+
 void print_registers()
 {
     for (int i = 0; i < REGFILE; ++i)
@@ -63,11 +63,11 @@ void modify_registers()
 {
     unsigned short reg_num = 0;
     unsigned int value= 0;
-    printf("Hello! Enter Register Number (Decimal): ");
+    printf("Enter Register Number (Decimal): R");
     scanf("%hd", &reg_num);
     if(reg_num < 0 || reg_num > 7)
     {
-        printf("Bad Reg Num\n");
+        printf("Register does not exist\n");
     }
     else
     {
@@ -97,26 +97,42 @@ void modify_memory_locations()
         printf("Invalid memory type entered\n");
         return;
     }
+    //convert to enum
     mem_type = mem_type == 'i' ? I_MEMORY : D_MEMORY;
 
     printf("Enter address to modify (in hex): ");
     scanf("%x", &address);
+    //if memory is I_MEMORY it must be accessed by word
+    if(address % 2 != 0 && mem_type == I_MEMORY)
+    {
+        address -= 1;
+        printf("Instruction memory must be accessed by word (even address)\n"
+               "Moving address to %04X\n", address);
+        return;
+    }
+    //check if address is valid
     if(address > (WORD_MEMORY_SIZE) || address < 0)
     {
         printf("Invalid address entered");
         return;
     }
     printf("Enter word to set (0-FFFF): ");
+    //scan unsigned short as hex
     scanf("%hx", &value);
+    //set the value in the memory, since it's a word value we index as a .word
     loader_memory[mem_type].word[address>>1] = value;
 }
 void set_breakpoint()
 {
+    //temporay breakpoint to check if it is valid before setting it
     int temp_breakpoint;
-    printf("Enter a breakpoint (must be >%04x): ", my_emulator.program_counter);
+    printf("Enter a breakpoint (must be >%04x): ", my_emulator.reg_file[REGISTER][PROG_COUNTER]);
     scanf("%x",&temp_breakpoint);
+    //if the breakpoint is not even, make it even for word addressing
     temp_breakpoint = (temp_breakpoint % 2 == 0) ? temp_breakpoint : temp_breakpoint - 1;
-    if(temp_breakpoint < my_emulator.program_counter)
+    //check if program has passed breakpoint already
+    //NOTE future implementations could allow this if desired
+    if(temp_breakpoint < my_emulator.reg_file[REGISTER][PROG_COUNTER])
     {
         printf("Breakpoint has already been passed\n");
     }
@@ -126,38 +142,44 @@ void set_breakpoint()
         printf("Set breakpoint @ %04x\n", my_emulator.breakpoint);
     }
 }
-#define PROG_COUNTER 7
+
 void decode_instruction()
 {
     instruction_data current_instruction;
-    //set starting address to the starting address of the instruction memory
-    current_instruction.word = 0x0001;
-    //not at end of instruction memory
     do
     {
         //shift starting address right for word addressing since word memory is half the size of byte memory
-        current_instruction.word = loader_memory[I_MEMORY].word[my_emulator.program_counter >> 1];
+        current_instruction.word = loader_memory[I_MEMORY].word[my_emulator.reg_file[REGISTER][PROG_COUNTER] >> 1];
         if(current_instruction.byte[MSB] < 0x4C && current_instruction.byte[MSB] >= 0x40)
         {
             //opcode is only the MSB for this group
-            parse_arithmetic_block(current_instruction, my_emulator.program_counter);
+            parse_arithmetic_block(current_instruction, my_emulator.reg_file[REGISTER][PROG_COUNTER]);
+            my_emulator.reg_file[REGISTER][PROG_COUNTER]+= 2;
         }
         else if (current_instruction.byte[MSB] <= 0x4D && current_instruction.byte[MSB] >= 0x4C)
         {
-            parse_reg_manip_block(current_instruction, my_emulator.program_counter);
+            parse_reg_manip_block(current_instruction, my_emulator.reg_file[REGISTER][PROG_COUNTER]);
+            my_emulator.reg_file[REGISTER][PROG_COUNTER]+= 2;
         }
         else if(current_instruction.byte[MSB] >= 0x60 && current_instruction.byte[MSB] <= 0x79)
         {
-            parse_move_block(current_instruction, my_emulator.program_counter);
+            parse_move_block(current_instruction, my_emulator.reg_file[REGISTER][PROG_COUNTER]);
+            my_emulator.reg_file[REGISTER][PROG_COUNTER]+= 2;
         }
         else
         {
-            printf("%04X: NOT SUPPORTED = %04x\n", my_emulator.program_counter, current_instruction.word);
+            if(current_instruction.word != 0x0000) {
+                printf("%04X: NOT SUPPORTED = %04x\n", my_emulator.reg_file[REGISTER][PROG_COUNTER], current_instruction.word);
+                my_emulator.reg_file[REGISTER][PROG_COUNTER]+= 2;
+
+            }
+            else {
+                printf("%04X: END OF CURRENT INSTRUCTIONS.\n", my_emulator.reg_file[REGISTER][PROG_COUNTER]);
+            }
+
         }
-        my_emulator.program_counter+= 2;
-        my_emulator.reg_file[REGISTER][PROG_COUNTER] = my_emulator.program_counter;
-    }while(current_instruction.word != 0x0000 && my_emulator.program_counter < my_emulator.breakpoint);
-    my_emulator.program_counter = my_emulator.starting_address;
+        //halt decoding at the breakpoint value, as the next stage will execute this decoded instruction, so halting here halts before the execution
+    }while(current_instruction.word != 0x0000 && my_emulator.reg_file[REGISTER][PROG_COUNTER]<= my_emulator.breakpoint);
     return;
 }
 
@@ -168,7 +190,6 @@ void decode_instruction()
 void parse_arithmetic_block(instruction_data current_instruction, short starting_addr)
 {
     //my_emulator.opcode = current_instruction.word & UPPER_BYTE_MASK;
-    unsigned char extracted_opcode = current_instruction.byte[MSB];
     my_emulator.opcode = current_instruction.byte[MSB];
     my_emulator.operands = current_instruction.byte[LSB];
     //extract the bottom nibble of the opcode
@@ -243,8 +264,6 @@ void parse_reg_manip_block(instruction_data current_instruction, short starting_
     }
     return;
 }
-
-#define MOVE_INSTR_MASK 0x1800
 void parse_move_block(instruction_data current_instruction, short starting_addr)
 {
     //check bits 12 and 11, shift that value to the right to get a value from 0-4, use that to index into the movement_instruction_table

@@ -33,6 +33,18 @@ typedef enum
 
 }OPCODES;
 
+typedef enum REGISTERS
+{
+    GRP0 = 0,
+    GPR1 = 1,
+    GPR2 = 2,
+    GPR3 = 3,
+    BASE_PTR = 4,
+    LINK_REG = 5,
+    STACK_PTR = 6,
+    PROG_COUNTER = 7,
+}REGISTERS;
+
 typedef enum
 {
     B7 = 0x80,
@@ -52,6 +64,7 @@ typedef union instruction_data
     unsigned char byte[2];
     unsigned short word;
 }instruction_data;
+#ifdef TO_BE_IMPLEMENTED
 typedef struct
 {
     unsigned char register_or_constant;
@@ -77,18 +90,22 @@ typedef union operands
     reg_manip reg_manip_operands;
     move move_operands;
 }operands;
-#define REG_CON 2
+#endif
 
-#define REGFILE 8
+/*
+ * @brief This struct is used to store the emulator data and contains future
+ * components to be implemented later
+ */
 typedef struct emulator_data
 {
     short opcode;
     short operands;
-    union operands my_operands;
-    unsigned int program_counter;
-    bool is_memset;
+#ifdef TO_BE_IMPLEMENTED
+    //union operands my_operands;
     bool is_emulator_running;
     unsigned int clock;
+#endif
+    bool is_memset;
     unsigned int starting_address;
     bool is_single_step;
     unsigned short reg_file[REG_CON][REGFILE];

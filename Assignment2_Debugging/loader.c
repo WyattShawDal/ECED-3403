@@ -31,6 +31,7 @@ void menu() {
             printf("Enter name of file to load:");
             scanf("%70s", input_string);
             load(input_file, input_string);
+            my_emulator.is_memset = true;
         }
         else if (command == 'm')
         {
@@ -195,8 +196,8 @@ void store_in_memory(int type, int record_address, int record_length, unsigned c
     else if (type == 9)
     {
         my_emulator.starting_address = (short)record_address;
-        my_emulator.program_counter = my_emulator.starting_address;
-        printf("Program starting Addr = %04x\n", record_address);
+        my_emulator.reg_file[REGISTER][PROG_COUNTER] = my_emulator.starting_address;
+        printf("Program starting Addr = %04x\n", my_emulator.starting_address);
     }
     else
     {

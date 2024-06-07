@@ -4,14 +4,13 @@
 
 #ifndef ASSIGNMENT1_INSTRUCTION_TABLE_H
 #define ASSIGNMENT1_INSTRUCTION_TABLE_H
-#define INSTR_NAME_LENGTH 6
+
 typedef struct instruction_table_data
 {
     short opcode;
     char* instruction_name;
 }instruction_table_data;
 
-#define NUMBER_INSTRUCTIONS 11
 instruction_table_data arithmetic_instruction_table[] =
     {
         {0x40, "ADD"},
