@@ -13,12 +13,7 @@
 #include "emulation.h"
 #include "loader.h"
 
-#ifdef TWO_MEM_ARRAY
-unsigned char IMEM[BYTE_MEMORY_SIZE];
-unsigned char DMEM[BYTE_MEMORY_SIZE];
-#else
 Memory loader_memory[2];
-#endif
 
 #define REG_CON 2
 #define REGFILE 8

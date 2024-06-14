@@ -6,7 +6,10 @@
 extern Emulator my_emulator;
 
 
-
+/*
+ * @brief This function provides a menu for various debugging options in the
+ * emulator
+ */
 void debugger_menu()
 {
     //debugger menu notification
@@ -24,7 +27,7 @@ void debugger_menu()
         switch (command)
         {
             case 'd':
-                decode_instruction();
+                decode_instruction(NULL);
                 break;
             case 'r':
                 print_registers();
@@ -49,7 +52,9 @@ void debugger_menu()
     }while (tolower(command) != 'q');
 }
 
-
+/*
+ * @brief This function prints the registers from the reg_file in the emulator
+ */
 void print_registers()
 {
     for (int i = 0; i < REGFILE; ++i)
@@ -57,6 +62,9 @@ void print_registers()
         printf("R%d = %04x\n", i, my_emulator.reg_file[REGISTER][i].word);
     }
 }
+/*
+ * @brief This function allows the user to modify the values of the registers in the emulator
+ */
 void modify_registers()
 {
     unsigned short reg_num = 0;
@@ -82,6 +90,9 @@ void modify_registers()
         }
     }
 }
+/*
+ * @brief This function allows the user to modify the values of the memory in the emulator
+ */
 void modify_memory_locations()
 {
     char mem_type;
@@ -120,6 +131,9 @@ void modify_memory_locations()
     //set the value in the memory, since it's a word value we index as a .word
     loader_memory[mem_type].word[address>>1] = value;
 }
+/*
+ * @brief This function allows the user to set a breakpoint in the emulator
+ */
 void set_breakpoint()
 {
     //temporay breakpoint to check if it is valid before setting it
@@ -140,8 +154,11 @@ void set_breakpoint()
         printf("Set breakpoint @ %04x\n", my_emulator.breakpoint);
     }
 }
-
-void decode_instruction()
+/*
+ * @brief This function decodes the instructions in the emulator
+    * @param emulator the emulator to decode instructions for
+ */
+void decode_instruction(Emulator *emulator)
 {
     instruction_data current_instruction;
     do
@@ -176,8 +193,8 @@ void decode_instruction()
             }
 
         }
-        execute(&my_emulator);
-        //halt decoding at the breakpoint value, as the next stage will execute this decoded instruction, so halting here halts before the execution
+        execute_instruction(&my_emulator);
+        //halt decoding at the breakpoint value, as the next stage will execute_instruction this decoded instruction, so halting here halts before the execution
     }while(current_instruction.word != 0x0000 && my_emulator.reg_file[REGISTER][PROG_COUNTER].word <= my_emulator.breakpoint);
 
 
@@ -188,7 +205,14 @@ void decode_instruction()
 #define UPPER_BYTE_MASK 0xFF00
 #define LOWER_NIBBLE_MASK 0x0F
 #define CONSTANT 1
-
+/*
+ * @brief This function parses the arithmetic block of instructions
+ * @param current_instruction the current instruction to parse
+ * @param starting_addr the starting address of the instruction
+ * @note This function extracts all the values of the bits used and also assigns
+ * an opcode for the emulator to use later in execution
+ * TODO convert my_operands to a bitfield struct (already written but not implemented)
+ */
 void parse_arithmetic_block(instruction_data current_instruction, short starting_addr)
 {
     //my_emulator.opcode = current_instruction.word & UPPER_BYTE_MASK;
@@ -206,11 +230,17 @@ void parse_arithmetic_block(instruction_data current_instruction, short starting
 
         unsigned char register_or_constant = my_emulator.operands >> 7, word_or_byte = ((my_emulator.operands >> 6) & B0),
         source_const = (my_emulator.operands >> 3) & EXTRACT_LOW_THREE_BITS, dest = my_emulator.operands & EXTRACT_LOW_THREE_BITS;
+#ifdef FLAG_V1
         my_emulator.my_operands.arithmetic_operands.dest = dest;
         my_emulator.my_operands.arithmetic_operands.register_or_constant = register_or_constant;
         my_emulator.my_operands.arithmetic_operands.word_or_byte = word_or_byte;
         my_emulator.my_operands.arithmetic_operands.source_const = source_const;
-
+#else
+        my_emulator.my_operands.dest = dest;
+        my_emulator.my_operands.register_or_constant = register_or_constant;
+        my_emulator.my_operands.word_or_byte = word_or_byte;
+        my_emulator.my_operands.source_const = source_const;
+#endif
         if(register_or_constant == CONSTANT)
         {
             printf("R/C = %d, W/B = %d, CON = %d , DEST = R%d\n", register_or_constant, word_or_byte, source_const, dest);
@@ -228,7 +258,12 @@ void parse_arithmetic_block(instruction_data current_instruction, short starting
 #define RRC 0x01
 #define SWPB 0x03
 #define SXT 0x04
-
+/*
+ * @brief This function parses the register manipulation block of instructions
+ * @param current_instruction the current instruction to parse
+ * @param starting_addr the starting address of the instruction
+ *
+ */
 void parse_reg_manip_block(instruction_data current_instruction, short starting_addr)
 {
     my_emulator.opcode = current_instruction.word & UPPER_BYTE_MASK;
@@ -274,6 +309,11 @@ void parse_reg_manip_block(instruction_data current_instruction, short starting_
     }
     return;
 }
+/*
+ * @brief This function parses the move block of instructions
+ * @param current_instruction the current instruction to parse
+ * @param starting_addr the starting address of the instruction
+ */
 void parse_move_block(instruction_data current_instruction, short starting_addr)
 {
     //check bits 12 and 11, shift that value to the right to get a value from 0-4, use that to index into the movement_instruction_table

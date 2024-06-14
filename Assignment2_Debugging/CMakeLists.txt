@@ -10,4 +10,5 @@ add_executable(Assignment2_Debugging main.c
         loader.h
         emulation.h
         instruction_table.h
+        emulation.c
 )

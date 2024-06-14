@@ -50,8 +50,11 @@ typedef union memory
 void load(FILE *open_file, char *file_name);
 void menu();
 void display_data();
-void parse_data(char *string_data, unsigned char **converted_data);
-bool test_checksum(unsigned char *data, unsigned char length_byte, char *address_bytes, char *checksum_byte, int data_length);
+void parse_data(char *string_data, unsigned char **converted_data,
+                unsigned char *sum);
+
+bool test_checksum(unsigned char length_byte, unsigned short address_bytes,
+                   char *checksum_byte, unsigned char data_sum);
 void clean_data(char* s_record);
 void store_in_memory(int type, int record_address, int record_length, unsigned char* parsed_data);
 bool record_check(char * s_record);

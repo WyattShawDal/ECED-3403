@@ -11,10 +11,13 @@
 unsigned char carry_check[2][2][2] = {0, 0, 1, 0, 1, 0, 1, 1};
 unsigned char overflow_check[2][2][2] = {0, 1, 0, 0, 0, 0, 1, 0};
 
-
-void execute(Emulator *emulator)
+/*
+ * @brief This function executes the instruction based on the current opcode
+ * in the emulator
+ */
+void execute_instruction(Emulator *emulator)
 {
-
+//todo change this to use a struct with bit fields.
     unsigned char dest = emulator->my_operands.arithmetic_operands.dest;
     unsigned char wb = emulator->my_operands.arithmetic_operands.word_or_byte;
     unsigned char rc = emulator->my_operands.arithmetic_operands.register_or_constant;
@@ -144,6 +147,10 @@ void execute(Emulator *emulator)
     }
 }
 #define MSbit 0x8000
+/*
+ * @brief This function updates the program status word based on the result of
+ * executed operations, not all operations will cause this function to be called
+ */
 void update_psw(unsigned short result, Emulator *emulator)
 {
     emulator->psw.zero = result == 0 ? 1 : 0;

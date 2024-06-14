@@ -102,13 +102,23 @@ typedef struct
     unsigned char byte;
     unsigned char dest : 3; //not sure best way to use this
 }move;
+#define FLAG_V1
+#ifdef FLAG_V1
 typedef union operands
 {
     arithmetic arithmetic_operands;
     reg_manip reg_manip_operands;
     move move_operands;
 }operands;
+#else
+typedef struct operands{
+    unsigned char register_or_constant : 1;
+    unsigned char word_or_byte : 1;
+    unsigned char source_const : 3;
+    unsigned char dest : 3;
+}operands;
 
+#endif
 
 typedef struct program_status_word
 {
@@ -148,7 +158,7 @@ void print_registers();
 void modify_registers();
 void modify_memory_locations();
 void set_breakpoint();
-void decode_instruction();
+void decode_instruction(Emulator *emulator);
 void parse_arithmetic_block(instruction_data current_instruction, short starting_addr);
 void parse_reg_manip_block(instruction_data current_instruction, short starting_addr);
 void parse_move_block(instruction_data current_instruction, short starting_addr);
@@ -156,7 +166,7 @@ void parse_move_block(instruction_data current_instruction, short starting_addr)
 
 //executions
 void update_psw(unsigned short result, Emulator *emulator);
-void execute(Emulator *emulator);
+void execute_instruction(Emulator *emulator);
 
 
 extern Memory loader_memory[2];
