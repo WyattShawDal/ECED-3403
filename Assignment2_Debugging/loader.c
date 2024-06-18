@@ -20,7 +20,8 @@ void menu() {
     char command = '\0';
     do
     {
-        printf("Enter a command, Load (L), Display Memory (M), Debug Menu (D),  Quit (Q): ");
+        printf("Enter a command:"
+               "Run Emulator (G), Enable Single Step (S), Load (L), Display Memory (M), Debug Menu (D),  Quit (Q): ");
         if (scanf(" %c", &command) != 1)
         {
             //clearing the input buffer
@@ -44,16 +45,20 @@ void menu() {
                 debugger_menu();
                 break;
             case 'g':
+                if(!my_emulator.is_memset)
+                {
+                    printf("No file loaded, cannot run emulator\n");
+                    break;
+                }
                 if(my_emulator.is_emulator_running && my_emulator.is_single_step)
                 {
-                    printf("Stepping Clock\n");
-                    my_emulator.clock++;
-                    break;
+                    printf("Moving to next step\n");
+                    return;
                 }
                 else if (my_emulator.is_emulator_running)
                 {
                     printf("Emulator is already running\n");
-                    break;
+                    return;
                 }
                 else
                 {
@@ -61,6 +66,14 @@ void menu() {
                     run_emulator(&my_emulator);
                     break;
                 }
+            case 's':
+                printf("Toggled single step: ");
+                my_emulator.is_single_step = !my_emulator.is_single_step;
+                my_emulator.is_single_step ? printf("(enabled)\n") : printf("(disabled)\n");
+                break;
+            case 'q':
+                printf("Exiting menu\n");
+                break;
             default:
                 printf("Invalid command, try again\n");
                 break;
@@ -68,7 +81,15 @@ void menu() {
         while (getchar() != '\n'); //another buffer clear to ensure menu doesn't loop
     }
     while (tolower(command) != 'q');
-    printf("Exiting Loader...");
+    if(my_emulator.is_emulator_running)
+    {
+        printf("Exiting Emulator...");
+        exit(0);
+    }
+    else
+    {
+        printf("Exiting Loader...");
+    }
 }
 /*
  * @brief load opens a file and reads the contents into memory

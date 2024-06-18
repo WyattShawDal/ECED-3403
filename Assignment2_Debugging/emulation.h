@@ -53,14 +53,14 @@ typedef enum REGISTERS
 
 typedef enum
 {
-    B7 = 0x80,
-    B6 = 0x40,
-    B5 = 0x20,
-    B4 = 0x10,
-    B3 = 0x08,
-    B2 = 0x04,
-    B1 = 0x02,
-    B0 = 0x01,
+    BIT7 = 0x80,
+    BIT6 = 0x40,
+    BIT5 = 0x20,
+    BIT4 = 0x10,
+    BIT3 = 0x08,
+    BIT2 = 0x04,
+    BIT1 = 0x02,
+    BIT0 = 0x01,
     EXTRACT_LOW_THREE_BITS = 0x07,
     EXTRACT_LOW_TWO_BITS = 0x03,
 }BITVALS;
@@ -112,10 +112,13 @@ typedef union operands
 }operands;
 #else
 typedef struct operands{
-    unsigned char register_or_constant : 1;
-    unsigned char word_or_byte : 1;
-    unsigned char source_const : 3;
-    unsigned char dest : 3;
+    unsigned short inc : 1;
+    unsigned short dec : 1;
+    unsigned short prpo : 1;
+    unsigned short register_or_constant : 1;
+    unsigned short word_or_byte : 1;
+    unsigned short source_const : 3;
+    unsigned short dest : 3;
 }operands;
 
 #endif
@@ -178,10 +181,13 @@ void decode_instruction(Emulator *emulator);
 void parse_arithmetic_block(instruction_data current_instruction, short starting_addr);
 void parse_reg_manip_block(instruction_data current_instruction, short starting_addr);
 void parse_reg_init(instruction_data current_instruction, short starting_addr);
+void parse_load_store(instruction_data current_instruction, unsigned short starting_addr);
+
 
 
 //executions
-void update_psw(unsigned short result, Emulator *emulator);
+void
+update_psw(unsigned short result, Emulator *emulator, unsigned short old_dest);
 void execute_instruction(Emulator *emulator);
 void fetch_instruction(Emulator *emulator, int even);
 void memory_controller(Emulator *emulator);

@@ -165,7 +165,7 @@ void set_breakpoint()
 }
 /*
  * @brief This function decodes the instructions in the emulator
-    * @param emulator the emulator to decode instructions for
+ * @param emulator the emulator to decode instructions for
  */
 #define USE_FETCH
 void decode_instruction(Emulator *emulator)
@@ -225,6 +225,10 @@ void decode_instruction(Emulator *emulator)
         {
             parse_reg_manip_block(current_instruction, my_emulator.reg_file[REGISTER][PROG_COUNTER].word);
         }
+//        else if (current_instruction.byte[MSB] < 0x60 && current_instruction.byte[MSB] >= 0x58 || current_instruction.byte[MSB] <= 0x9F && current_instruction.byte[MSB] >= 0x80)
+//        {
+//            parse_load_store(current_instruction, my_emulator.reg_file[REGISTER][PROG_COUNTER].word);
+//        }
         else if(current_instruction.byte[MSB] >= 0x60 && current_instruction.byte[MSB] <= 0x79)
         {
             parse_reg_init(current_instruction,
@@ -273,7 +277,7 @@ void parse_arithmetic_block(instruction_data current_instruction, short starting
                arithmetic_instruction_table[instruction_table_index].instruction_name);
 
         unsigned char register_or_constant = my_emulator.operand_bits >> 7,
-                        word_or_byte = ((my_emulator.operand_bits >> 6) & B0),
+                        word_or_byte = ((my_emulator.operand_bits >> 6) & BIT0),
                         source_const = (my_emulator.operand_bits >> 3) & EXTRACT_LOW_THREE_BITS,
                         dest = my_emulator.operand_bits & EXTRACT_LOW_THREE_BITS;
 #ifdef FLAG_V1
@@ -318,7 +322,7 @@ void parse_reg_manip_block(instruction_data current_instruction, short starting_
     if (val == MOV_SWAP)
     {
         unsigned char src_const = (my_emulator.operand_bits >> 3) & EXTRACT_LOW_THREE_BITS, dest = my_emulator.operand_bits & EXTRACT_LOW_THREE_BITS;
-        if((current_instruction.byte[LSB] & B7) == B7)
+        if((current_instruction.byte[LSB] & BIT7) == BIT7)
         {
             printf("%04X: SWAP ", starting_addr);
             unsigned char word_or_byte = 0;
@@ -327,12 +331,13 @@ void parse_reg_manip_block(instruction_data current_instruction, short starting_
         else
         {
             printf("%04X: MOV ", starting_addr);
-            unsigned char word_or_byte = (current_instruction.byte[LSB] >> 6) & B0;
+            unsigned char word_or_byte = (current_instruction.byte[LSB] >> 6) & BIT0;
             printf("W/B = %d, SRC = R%d , DEST = R%d\n", word_or_byte, src_const, dest);
         }
     }
     else if(val == BYTE_MANIP)
     {
+        /* Check bits 5-3 to identify function */
         unsigned char comparison_value = (my_emulator.operand_bits >> 3) & EXTRACT_LOW_THREE_BITS;
         unsigned char dest = my_emulator.operand_bits & EXTRACT_LOW_THREE_BITS;
         switch(comparison_value)
@@ -379,5 +384,19 @@ void parse_reg_init(instruction_data current_instruction, short starting_addr)
         my_emulator.my_operands.dest = current_instruction.word & EXTRACT_LOW_THREE_BITS;
         printf("BYTE = %02x, DEST = R%d\n", my_emulator.move_byte, my_emulator.my_operands.dest);
     }
+}
+//todo later
+void parse_load_store(instruction_data current_instruction, unsigned short starting_addr)
+{
+    my_emulator.my_operands.source_const = (current_instruction.word >> 3) & EXTRACT_LOW_THREE_BITS;
+    my_emulator.my_operands.dest = (current_instruction.word) & EXTRACT_LOW_THREE_BITS;
+    my_emulator.my_operands.word_or_byte = (current_instruction.word >> 6) & BIT0;
+    if(current_instruction.word < 0x60) //indexed addressing
+    {
 
+    }
+    else //relative addressing
+    {
+
+    }
 }

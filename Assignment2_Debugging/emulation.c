@@ -7,7 +7,6 @@
  * @brief This function implements the simulation of the emnulator, it provides an
  * update to clock cycles and handles the calling of functions according to pipeline
  * stages
- * TODO Implement the fetch_instruction function
  * TODO Modify all functions that change the emulator to take in a pointer to the emulator
  */
 
@@ -34,9 +33,8 @@ void run_emulator(Emulator *emulator)
             execute_instruction(emulator);
         }
         emulator->clock++;
-        if (emulator->is_single_step == true)
+        if (emulator->is_single_step == true || emulator->reg_file[REGISTER][PROG_COUNTER].word + 2 >= emulator->breakpoint)
         {
-            emulator->is_emulator_running = false;
             menu();
         }
     } while (emulator->is_emulator_running);

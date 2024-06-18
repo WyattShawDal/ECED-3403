@@ -17,21 +17,24 @@ unsigned char overflow_check[2][2][2] = {0, 1, 0, 0, 0, 0, 1, 0};
  */
 void execute_instruction(Emulator *emulator)
 {
-//todo change this to use a struct with bit fields.
-#ifdef FLAG_V1
-    unsigned char dest = emulator->my_operands.arithmetic_operands.dest;
-    unsigned char wb = emulator->my_operands.arithmetic_operands.word_or_byte;
-    unsigned char rc = emulator->my_operands.arithmetic_operands.register_or_constant;
-    unsigned char sc = emulator->my_operands.arithmetic_operands.source_const;
-#else
+
     instruction_data temp_reg;
     unsigned char temp;
-    short result;
+    unsigned char old_dest;
+    unsigned short result;
     unsigned char dest = emulator->my_operands.dest;
     unsigned char wb = emulator->my_operands.word_or_byte;
     unsigned char rc = emulator->my_operands.register_or_constant;
     unsigned char sc = emulator->my_operands.source_const;
-#endif
+    if(wb == WORD)
+    {
+        old_dest = emulator->reg_file[REGISTER][dest].word;
+    }
+    else
+    {
+        old_dest = emulator->reg_file[REGISTER][dest].byte[LSB];
+    }
+
     switch (emulator->opcode)
     {
         case add:
@@ -39,13 +42,15 @@ void execute_instruction(Emulator *emulator)
             {
                 emulator->reg_file[REGISTER][dest].word +=
                     emulator->reg_file[rc][sc].word;
-                update_psw(emulator->reg_file[REGISTER][dest].word, emulator);
+                update_psw(emulator->reg_file[REGISTER][dest].word, emulator,
+                           old_dest);
             }
             else
             {
                 emulator->reg_file[REGISTER][dest].byte[LSB] +=
                 emulator->reg_file[rc][sc].byte[LSB];
-                update_psw(emulator->reg_file[REGISTER][dest].byte[LSB], emulator);
+                update_psw(emulator->reg_file[REGISTER][dest].byte[LSB],
+                           emulator, old_dest);
             }
 
             break;
@@ -54,13 +59,15 @@ void execute_instruction(Emulator *emulator)
             {
                 emulator->reg_file[REGISTER][dest].word +=
                         (emulator->reg_file[rc][sc].word + emulator->psw.carry);
-                update_psw(emulator->reg_file[REGISTER][dest].word, emulator);
+                update_psw(emulator->reg_file[REGISTER][dest].word, emulator,
+                           old_dest);
             }
             else
             {
                 emulator->reg_file[REGISTER][dest].byte[LSB] +=
                         (emulator->reg_file[rc][sc].byte[LSB] + emulator->psw.carry);
-                update_psw(emulator->reg_file[REGISTER][dest].byte[LSB], emulator);
+                update_psw(emulator->reg_file[REGISTER][dest].byte[LSB],
+                           emulator, old_dest);
             }
             break;
         case sub:
@@ -68,13 +75,15 @@ void execute_instruction(Emulator *emulator)
             {
                 emulator->reg_file[REGISTER][dest].word +=
                         ~emulator->reg_file[rc][sc].word + 1;
-                update_psw(emulator->reg_file[REGISTER][dest].word, emulator);
+                update_psw(emulator->reg_file[REGISTER][dest].word, emulator,
+                           old_dest);
             }
             else
             {
                 emulator->reg_file[REGISTER][dest].byte[LSB] +=
                         ~emulator->reg_file[rc][sc].byte[LSB] + 1;
-                update_psw(emulator->reg_file[REGISTER][dest].byte[LSB], emulator);
+                update_psw(emulator->reg_file[REGISTER][dest].byte[LSB],
+                           emulator, old_dest);
             }
             break;
         case subc: //subtract with carry
@@ -82,14 +91,15 @@ void execute_instruction(Emulator *emulator)
             {
                 emulator->reg_file[REGISTER][dest].word +=
                         emulator->reg_file[rc][sc].word + emulator->psw.carry;
-                update_psw(emulator->reg_file[REGISTER][dest].word, emulator);
+                update_psw(emulator->reg_file[REGISTER][dest].word, emulator,
+                           old_dest);
             }
             else
             {
                 emulator->reg_file[REGISTER][dest].byte[LSB] +=
                         emulator->reg_file[rc][sc].byte[LSB] + emulator->psw.carry;
                 update_psw(emulator->reg_file[REGISTER][dest].byte[LSB],
-                           emulator);
+                           emulator, old_dest);
             }
             break;
         case dadd: //decimal add
@@ -100,13 +110,13 @@ void execute_instruction(Emulator *emulator)
             {
                 temp = emulator->reg_file[REGISTER][dest].word;
                 temp += (~emulator->reg_file[rc][sc].word + 1);
-                update_psw(temp, emulator);
+                update_psw(temp, emulator, old_dest);
             }
             else
             {
                 temp = emulator->reg_file[REGISTER][dest].byte[LSB];
                 temp += (~emulator->reg_file[rc][sc].byte[LSB] + 1);
-                update_psw(temp, emulator);
+                update_psw(temp, emulator, old_dest);
             }
             break;
         case xor:
@@ -114,13 +124,15 @@ void execute_instruction(Emulator *emulator)
             {
                 emulator->reg_file[REGISTER][dest].word ^=
                         emulator->reg_file[rc][sc].word;
-                update_psw(emulator->reg_file[REGISTER][dest].word, emulator);
+                update_psw(emulator->reg_file[REGISTER][dest].word, emulator,
+                           old_dest);
             }
             else
             {
                 emulator->reg_file[REGISTER][dest].byte[LSB] ^=
                         emulator->reg_file[rc][sc].byte[LSB];
-                update_psw(emulator->reg_file[REGISTER][dest].byte[LSB], emulator);
+                update_psw(emulator->reg_file[REGISTER][dest].byte[LSB],
+                           emulator, old_dest);
             }
             break;
         case and:
@@ -128,13 +140,15 @@ void execute_instruction(Emulator *emulator)
             {
                 emulator->reg_file[REGISTER][dest].word &=
                         emulator->reg_file[rc][sc].word;
-                update_psw(emulator->reg_file[REGISTER][dest].word, emulator);
+                update_psw(emulator->reg_file[REGISTER][dest].word, emulator,
+                           old_dest);
             }
             else
             {
                 emulator->reg_file[REGISTER][dest].byte[LSB] &=
                         emulator->reg_file[rc][sc].byte[LSB];
-                update_psw(emulator->reg_file[REGISTER][dest].byte[LSB], emulator);
+                update_psw(emulator->reg_file[REGISTER][dest].byte[LSB],
+                           emulator, old_dest);
             }
             break;
         case or:
@@ -142,25 +156,27 @@ void execute_instruction(Emulator *emulator)
             {
                 emulator->reg_file[REGISTER][dest].word |=
                         emulator->reg_file[rc][sc].word;
-                update_psw(emulator->reg_file[REGISTER][dest].word, emulator);
+                update_psw(emulator->reg_file[REGISTER][dest].word, emulator,
+                           old_dest);
             }
             else
             {
                 emulator->reg_file[REGISTER][dest].byte[LSB] |=
                         emulator->reg_file[rc][sc].byte[LSB];
-                update_psw(emulator->reg_file[REGISTER][dest].byte[LSB], emulator);
+                update_psw(emulator->reg_file[REGISTER][dest].byte[LSB],
+                           emulator, old_dest);
             }
             break;
         case bit: //bit test
             if(wb == WORD)
             {
                 result = emulator->reg_file[REGISTER][dest].word & (1 << emulator->reg_file[rc][sc].word);
-                update_psw(result, emulator);
+                update_psw(result, emulator, old_dest);
             }
             else
             {
                 result = emulator->reg_file[REGISTER][dest].byte[LSB] & (1 << emulator->reg_file[rc][sc].byte[LSB]);
-                update_psw(result, emulator);
+                update_psw(result, emulator, old_dest);
             }
 
             break;
@@ -168,24 +184,28 @@ void execute_instruction(Emulator *emulator)
             if(wb == WORD)
             {
                 emulator->reg_file[REGISTER][dest].word &= ~(1 << emulator->reg_file[rc][sc].word);
-                update_psw(emulator->reg_file[REGISTER][dest].word, emulator);
+                update_psw(emulator->reg_file[REGISTER][dest].word, emulator,
+                           old_dest);
             }
             else
             {
                 emulator->reg_file[REGISTER][dest].byte[LSB] &= ~(1 << emulator->reg_file[rc][sc].byte[LSB]);
-                update_psw(emulator->reg_file[REGISTER][dest].byte[LSB], emulator);
+                update_psw(emulator->reg_file[REGISTER][dest].byte[LSB],
+                           emulator, old_dest);
             }
             break;
         case bis: //bit set
             if(wb == WORD)
             {
                 emulator->reg_file[REGISTER][dest].word |= (1 << emulator->reg_file[rc][sc].word);
-                update_psw(emulator->reg_file[REGISTER][dest].word, emulator);
+                update_psw(emulator->reg_file[REGISTER][dest].word, emulator,
+                           old_dest);
             }
             else
             {
                 emulator->reg_file[REGISTER][dest].byte[LSB] |= (1 << emulator->reg_file[rc][sc].byte[LSB]);
-                update_psw(emulator->reg_file[REGISTER][dest].byte[LSB], emulator);
+                update_psw(emulator->reg_file[REGISTER][dest].byte[LSB],
+                           emulator, old_dest);
             }
             break;
         case mov: //move
@@ -274,30 +294,33 @@ void execute_instruction(Emulator *emulator)
 
     }
 }
-#define MSbit 0x8000
+
 /*
  * @brief This function updates the program status word based on the result of
  * executed operations, not all operations will cause this function to be called
+ * @param result the result of the previous operation
+ * @param emulator the emulator struct
+ * @param old_dest the value of the destination register before the operation
  */
-void update_psw(unsigned short result, Emulator *emulator)
+void update_psw(unsigned short result, Emulator *emulator, unsigned short old_dest)
 {
+    unsigned short ms_bit;
+    unsigned short source_val;
+    if(emulator->my_operands.word_or_byte == WORD)
+    {
+        ms_bit = 0x8000;
+        source_val = emulator->reg_file[emulator->my_operands.register_or_constant][emulator->my_operands.source_const].word;
+    }
+    else
+    {
+        ms_bit = 0x80;
+        source_val = emulator->reg_file[emulator->my_operands.register_or_constant][emulator->my_operands.source_const].byte[LSB];
+
+    }
+
     emulator->psw.zero = result == 0 ? 1 : 0;
-    emulator->psw.negative = result & MSbit ? 1 : 0;
-#ifdef FLAG_V1
-    emulator->psw.carry = carry_check[emulator->my_operands.arithmetic_operands.source_const & MSbit]
-            [emulator->my_operands.arithmetic_operands.dest & MSbit]
-            [result & MSbit];
-    emulator->psw.overflow = overflow_check[emulator->my_operands.arithmetic_operands.source_const & MSbit]
-    [emulator->my_operands.arithmetic_operands.dest & MSbit]
-    [result & MSbit];
-#else
-    //todo change source/const and dest to registers and not variables
-    emulator->psw.carry = carry_check[emulator->my_operands.source_const & MSbit]
-    [emulator->my_operands.dest & MSbit]
-    [result & MSbit];
-    emulator->psw.overflow = overflow_check[emulator->my_operands.source_const & MSbit]
-    [emulator->my_operands.dest & MSbit]
-    [result & MSbit];
-#endif
+    emulator->psw.negative = result & ms_bit ? 1 : 0;
+    emulator->psw.carry = carry_check[source_val & ms_bit][old_dest & ms_bit][result & ms_bit];
+    emulator->psw.overflow = overflow_check[source_val & ms_bit][old_dest & ms_bit][result & ms_bit];
 
 }
