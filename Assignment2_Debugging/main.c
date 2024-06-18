@@ -13,7 +13,7 @@
 #include "emulation.h"
 #include "loader.h"
 
-Memory loader_memory[2];
+Memory xm23_memory[2];
 
 #define REG_CON 2
 #define REGFILE 8
@@ -44,7 +44,7 @@ int main(int argc, char* argv[]) {
 void init_emulator()
 {
     my_emulator.breakpoint =  (BYTE_MEMORY_SIZE) - 1;;
-    instruction_data reg_file[REG_CON][REGFILE] = {
+    instruction_data reg_file[REG_CON][REGFILE_SIZE] = {
             {
                     { .word = 0 }, { .word = 0 }, { .word = 0 }, { .word = 0 },
                     { .word = 0 }, { .word = 0 }, { .word = 0 }, { .word = 0 }
@@ -54,5 +54,5 @@ void init_emulator()
                     { .word = 8 }, { .word = 16 }, { .word = 32 }, { .word = (unsigned short)-1 }
             }
     };
-    memcpy(my_emulator.reg_file, reg_file, sizeof (unsigned short) * REG_CON * REGFILE);
+    memcpy(my_emulator.reg_file, reg_file, sizeof (unsigned short) * REG_CON * REGFILE_SIZE);
 }

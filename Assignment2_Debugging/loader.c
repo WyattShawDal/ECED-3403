@@ -43,6 +43,24 @@ void menu() {
             case 'd':
                 debugger_menu();
                 break;
+            case 'g':
+                if(my_emulator.is_emulator_running && my_emulator.is_single_step)
+                {
+                    printf("Stepping Clock\n");
+                    my_emulator.clock++;
+                    break;
+                }
+                else if (my_emulator.is_emulator_running)
+                {
+                    printf("Emulator is already running\n");
+                    break;
+                }
+                else
+                {
+                    printf("Running Emulator\n");
+                    run_emulator(&my_emulator);
+                    break;
+                }
             default:
                 printf("Invalid command, try again\n");
                 break;
@@ -210,7 +228,7 @@ void store_in_memory(int type, int record_address, int record_length, unsigned c
         case 1:
             //fall through to case2 as both operations are the same
         case 2:
-            memcpy(loader_memory[type - 1].byte + record_address, parsed_data,
+            memcpy(xm23_memory[type - 1].byte + record_address, parsed_data,
                    record_length);
             printf("S%d Stored\n", type);
             break;
@@ -230,7 +248,7 @@ void store_in_memory(int type, int record_address, int record_length, unsigned c
 //        }
 //        else if (type == 1 || type == 2)
 //        {
-//            memcpy(loader_memory[type-1].byte + record_address, parsed_data, record_length);
+//            memcpy(xm23_memory[type-1].byte + record_address, parsed_data, record_length);
 //            printf("S%d Stored\n", type);
 //        }
 //        else if (type == 9)
@@ -333,7 +351,7 @@ void display_loader_memory()
         {
             printf("%04x: ", i);
         }
-        printf("%02x, ", loader_memory[mem_type].byte[i]);
+        printf("%02x, ", xm23_memory[mem_type].byte[i]);
         if (i > lower_lookup && (i + 1) % MEMORY_LINE_LENGTH == 0)
         {
             //add spaces between the hex and ascii values
@@ -342,9 +360,9 @@ void display_loader_memory()
             for (int j = i - MEMORY_LINE_LENGTH; j < i; ++j)
             {
                 //check if it's a printable character
-                if (isprint(loader_memory[mem_type].byte[j]))
+                if (isprint(xm23_memory[mem_type].byte[j]))
                 {
-                    printf("%c", loader_memory[mem_type].byte[j]);
+                    printf("%c", xm23_memory[mem_type].byte[j]);
                 }
                 else
                 {

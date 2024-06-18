@@ -26,7 +26,7 @@
 #define BYTE_MEMORY_SIZE 1<<16
 #define WORD_MEMORY_SIZE 1<<15
 #define REG_CON 2
-#define REGFILE 8
+#define REGFILE_SIZE 8
 #define REGISTER 0
 #define CONSTANT 1
 #define SIZE_OF_RAW_LENGTH 3 //2 chars + NULL
@@ -65,5 +65,5 @@ void display_loader_memory();
 extern FILE* input_file;
 extern unsigned char IMEM[BYTE_MEMORY_SIZE];
 extern unsigned char DMEM[BYTE_MEMORY_SIZE];
-extern Memory loader_memory[2];
+extern Memory xm23_memory[2];
 #endif //ASSIGNMENT1_LOADER_H

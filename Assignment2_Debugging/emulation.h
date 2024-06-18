@@ -14,7 +14,7 @@
 
 typedef enum
 {
-    add,
+    add =1 ,
     addc,
     sub,
     subc,
@@ -102,7 +102,7 @@ typedef struct
     unsigned char byte;
     unsigned char dest : 3; //not sure best way to use this
 }move;
-#define FLAG_V1
+//#define FLAG_V1
 #ifdef FLAG_V1
 typedef union operands
 {
@@ -133,22 +133,38 @@ typedef struct program_status_word
     unsigned short carry :1;
 }program_status_word;
 
+typedef struct i_control_registers
+{
+    unsigned short IMAR; //program counter value
+    unsigned short IMBR; //instruction from fetch
+}InstControlRegisters;
+typedef struct d_control_registers
+{
+    unsigned short DMAR; //program counter value
+    unsigned short DMBR; //instruction from fetch
+}DataControlRegisters;
+
+
 #define REG_CON 2
-#define REGFILE 8
+#define REGFILE_SIZE 8
 typedef struct emulator_data
 {
     short opcode;
-    short operands;
-    union operands my_operands;
-    unsigned int program_counter;
+    short operand_bits; //change
+    operands my_operands; //rename
+    program_status_word psw;
+    instruction_data reg_file[REG_CON][REGFILE_SIZE];
+    InstControlRegisters i_control;
+    DataControlRegisters d_control;
+    unsigned char xCTRL;
+    unsigned short instruction_register;
     bool is_memset;
     bool is_emulator_running;
+    bool is_single_step;
+    unsigned char move_byte;
     unsigned int clock;
     unsigned int starting_address;
-    bool is_single_step;
-    instruction_data reg_file[REG_CON][REGFILE];
     unsigned int breakpoint;
-    program_status_word psw;
 }Emulator;
 void debugger_menu();
 
@@ -161,12 +177,17 @@ void set_breakpoint();
 void decode_instruction(Emulator *emulator);
 void parse_arithmetic_block(instruction_data current_instruction, short starting_addr);
 void parse_reg_manip_block(instruction_data current_instruction, short starting_addr);
-void parse_move_block(instruction_data current_instruction, short starting_addr);
+void parse_reg_init(instruction_data current_instruction, short starting_addr);
 
 
 //executions
 void update_psw(unsigned short result, Emulator *emulator);
 void execute_instruction(Emulator *emulator);
+void fetch_instruction(Emulator *emulator, int even);
+void memory_controller(Emulator *emulator);
+void run_emulator(Emulator *emulator);
+
+
 
 
 extern Memory loader_memory[2];
