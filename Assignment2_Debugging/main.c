@@ -14,45 +14,21 @@
 #include "loader.h"
 
 Memory xm23_memory[2];
-
-#define REG_CON 2
-#define REGFILE 8
-
-Emulator my_emulator;
-
 FILE* input_file;
 
-void init_emulator();
-
 int main(int argc, char* argv[]) {
+    Emulator *new_emulator = calloc(1, sizeof(Emulator));
     //support for dragging a file onto the executable to start the program
-    init_emulator();
+    init_emulator(new_emulator);
     if (argc > 1)
     {
         printf("File provided to loader (%s), loading now..\n", argv[1]);
-        load(input_file, argv[1]);
-        menu();
+        load(input_file, argv[1], new_emulator);
+        menu(new_emulator);
     }
     else
     {
-        menu();
+        menu(new_emulator);
     }
-
     return 0;
-}
-
-void init_emulator()
-{
-    my_emulator.breakpoint =  (BYTE_MEMORY_SIZE) - 1;;
-    instruction_data reg_file[REG_CON][REGFILE_SIZE] = {
-            {
-                    { .word = 0 }, { .word = 0 }, { .word = 0 }, { .word = 0 },
-                    { .word = 0 }, { .word = 0 }, { .word = 0 }, { .word = 0 }
-            },
-            {
-                    { .word = 0 }, { .word = 1 }, { .word = 2 }, { .word = 4 },
-                    { .word = 8 }, { .word = 16 }, { .word = 32 }, { .word = (unsigned short)-1 }
-            }
-    };
-    memcpy(my_emulator.reg_file, reg_file, sizeof (unsigned short) * REG_CON * REGFILE_SIZE);
 }

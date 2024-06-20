@@ -10,7 +10,8 @@
 #define CONSTANT 1
 #define MSB 1
 #define LSB 0
-
+#define BYTE_SHIFT 7
+#define WORD_SHIFT 15
 
 typedef enum
 {
@@ -53,6 +54,8 @@ typedef enum REGISTERS
 
 typedef enum
 {
+    WORD_MSb = 0x8000,
+    BYTE_MSb = 0x80,
     BIT7 = 0x80,
     BIT6 = 0x40,
     BIT5 = 0x20,
@@ -83,34 +86,8 @@ typedef union instruction_data
     unsigned char byte[2];
     unsigned short word;
 }instruction_data;
-typedef struct
-{
-    unsigned char register_or_constant;
-    unsigned char word_or_byte;
-    unsigned char source_const;
-    unsigned char dest;
-}arithmetic;
-typedef struct
-{
-    unsigned char register_or_constant;
-    unsigned char word_or_byte;
-    unsigned char source_const;
-    unsigned char dest;
-}reg_manip;
-typedef struct
-{
-    unsigned char byte;
-    unsigned char dest : 3; //not sure best way to use this
-}move;
-//#define FLAG_V1
-#ifdef FLAG_V1
-typedef union operands
-{
-    arithmetic arithmetic_operands;
-    reg_manip reg_manip_operands;
-    move move_operands;
-}operands;
-#else
+
+
 typedef struct operands{
     unsigned short inc : 1;
     unsigned short dec : 1;
@@ -121,16 +98,16 @@ typedef struct operands{
     unsigned short dest : 3;
 }operands;
 
-#endif
-
 typedef struct program_status_word
 {
+    //later use
     unsigned short previous_prio :3;
     unsigned short unused :4;
     unsigned short fault :1;
     unsigned short current_prio :3;
-    unsigned short overflow :1;
     unsigned short sleep :1;
+    //a2 flags
+    unsigned short overflow :1;
     unsigned short negative :1;
     unsigned short zero :1;
     unsigned short carry :1;
@@ -147,8 +124,7 @@ typedef struct d_control_registers
     unsigned short DMBR; //instruction from fetch
 }DataControlRegisters;
 
-
-#define REG_CON 2
+#define REG_FILE_OPTIONS 2 //register or constant
 #define REGFILE_SIZE 8
 typedef struct emulator_data
 {
@@ -156,43 +132,47 @@ typedef struct emulator_data
     short operand_bits; //change
     operands my_operands; //rename
     program_status_word psw;
-    instruction_data reg_file[REG_CON][REGFILE_SIZE];
+    instruction_data reg_file[REG_FILE_OPTIONS][REGFILE_SIZE];
     InstControlRegisters i_control;
     DataControlRegisters d_control;
+    bool is_memset;
+    bool has_started;
+    bool is_single_step;
+    bool is_user_interrupt;
     unsigned char xCTRL;
     unsigned short instruction_register;
-    bool is_memset;
-    bool is_emulator_running;
-    bool is_single_step;
     unsigned char move_byte;
     unsigned int clock;
     unsigned int starting_address;
     unsigned int breakpoint;
 }Emulator;
-void debugger_menu();
+void menu(Emulator *emulator);
+void init_emulator(Emulator *emulator);
 
+void print_psw(Emulator emulator);
 
 //decoding
-void print_registers();
-void modify_registers();
-void modify_memory_locations();
-void set_breakpoint();
+void print_registers(Emulator emulator);
+void modify_registers(Emulator *emulator);
+void modify_memory_locations(Emulator *emulator);
+void set_breakpoint(Emulator *emulator);
 void decode_instruction(Emulator *emulator);
-void parse_arithmetic_block(instruction_data current_instruction, short starting_addr);
-void parse_reg_manip_block(instruction_data current_instruction, short starting_addr);
-void parse_reg_init(instruction_data current_instruction, short starting_addr);
-void parse_load_store(instruction_data current_instruction, unsigned short starting_addr);
+void parse_arithmetic_block(Emulator *emulator, instruction_data current_instruction, short starting_addr);
+void parse_reg_manip_block(Emulator *emulator, instruction_data current_instruction, short starting_addr);
+void parse_reg_init(Emulator *emulator, instruction_data current_instruction, short starting_addr);
+//later use (not a2)
+void parse_load_store(Emulator *emulator, instruction_data current_instruction, unsigned short starting_addr);
 
 
 
 //executions
 void
-update_psw(unsigned short result, Emulator *emulator, unsigned short old_dest);
+update_psw(unsigned short result, Emulator *emulator, unsigned short old_dest, unsigned short source);
 void execute_instruction(Emulator *emulator);
 void fetch_instruction(Emulator *emulator, int even);
 void memory_controller(Emulator *emulator);
 void run_emulator(Emulator *emulator);
-
+void bcd_addition(Emulator *emulator);
 
 
 

@@ -12,91 +12,13 @@
 #define CHAR_TO_INT(x) ((x)- '0')
 
 
-extern Emulator my_emulator;
-/*
- * @brief menu provides a menu for the user to interact with the xm-23p emulator
- */
-void menu() {
-    char command = '\0';
-    do
-    {
-        printf("Enter a command:"
-               "Run Emulator (G), Enable Single Step (S), Load (L), Display Memory (M), Debug Menu (D),  Quit (Q): ");
-        if (scanf(" %c", &command) != 1)
-        {
-            //clearing the input buffer
-            while (getchar() != '\n');
-            continue;
-        }
-        command = (char) tolower(command);
-        switch(command)
-        {
-            case 'l':
-                char input_string[MAX_RECORD_LEN];
-                printf("Enter name of file to load:");
-                scanf("%70s", input_string);
-                load(input_file, input_string);
-                my_emulator.is_memset = true;
-                break;
-            case 'm':
-                display_loader_memory();
-                break;
-            case 'd':
-                debugger_menu();
-                break;
-            case 'g':
-                if(!my_emulator.is_memset)
-                {
-                    printf("No file loaded, cannot run emulator\n");
-                    break;
-                }
-                if(my_emulator.is_emulator_running && my_emulator.is_single_step)
-                {
-                    printf("Moving to next step\n");
-                    return;
-                }
-                else if (my_emulator.is_emulator_running)
-                {
-                    printf("Emulator is already running\n");
-                    return;
-                }
-                else
-                {
-                    printf("Running Emulator\n");
-                    run_emulator(&my_emulator);
-                    break;
-                }
-            case 's':
-                printf("Toggled single step: ");
-                my_emulator.is_single_step = !my_emulator.is_single_step;
-                my_emulator.is_single_step ? printf("(enabled)\n") : printf("(disabled)\n");
-                break;
-            case 'q':
-                printf("Exiting menu\n");
-                break;
-            default:
-                printf("Invalid command, try again\n");
-                break;
-        }
-        while (getchar() != '\n'); //another buffer clear to ensure menu doesn't loop
-    }
-    while (tolower(command) != 'q');
-    if(my_emulator.is_emulator_running)
-    {
-        printf("Exiting Emulator...");
-        exit(0);
-    }
-    else
-    {
-        printf("Exiting Loader...");
-    }
-}
+
 /*
  * @brief load opens a file and reads the contents into memory
  * @param open_file the file to open
  * @param file_name the name of the file to open
  */
-void load(FILE *open_file, char *file_name) {
+void load(FILE *open_file, char *file_name, Emulator *emulator) {
     if (file_name == NULL)
     {
         printf("No file name to load!\n");
@@ -116,7 +38,7 @@ void load(FILE *open_file, char *file_name) {
         s_record[strcspn(s_record, "\r")] = 0; //clear carriage return from EOL
         if (tolower(s_record[0]) != 's')
         {
-            printf("Unexpected value in .xme {%d}, check file input!\n", s_record[0]);
+            printf("Unexpected value in .xme {%d}, check file input! skipping this line\n", s_record[0]);
             //go to next line
         }
         else
@@ -129,7 +51,7 @@ void load(FILE *open_file, char *file_name) {
             else
             {
                 //record is good, now we can parse the data
-                clean_data(s_record);
+                clean_data(s_record, emulator);
 
             }
         }
@@ -162,7 +84,7 @@ bool record_check(char *s_record) {
  * then calls functions to store the data in memory
  * @param s_record the record to be cleaned
  */
-void clean_data(char *s_record) {
+void clean_data(char *s_record, Emulator *emulator) {
     if(s_record == NULL)
     {
         printf("No s_record provided, is NULL\n");
@@ -197,7 +119,7 @@ void clean_data(char *s_record) {
     //verify our data values pair with the checksum provided by the assembler
     if (test_checksum(processed_length, processed_address, raw_checksum, sum))
     {
-        store_in_memory(type, processed_address, processed_length, parsed_data);
+        store_in_memory(type, processed_address, processed_length, parsed_data, emulator);
     }
     else
     {
@@ -218,29 +140,7 @@ void clean_data(char *s_record) {
  * @param record_length the length of the record
  * @param parsed_data the data to store
  * */
-void store_in_memory(int type, int record_address, int record_length, unsigned char *parsed_data) {
-#ifdef TWO_MEM_ARRAY
-    switch (type)
-    {
-        case 0:
-            printf("Loaded File: %s\n", parsed_data);
-            break;
-        case 1:
-            memcpy(IMEM + record_address, parsed_data, record_length);
-            printf("S1 Stored\n");
-            break;
-        case 2:
-            memcpy(DMEM + record_address, parsed_data, record_length);
-            printf("S2 Stored\n");
-            break;
-        case 9:
-            printf("File read successfully. Starting Addr = %04x\n", record_address);
-            break;
-        default:
-            printf("Unknown Type {%d} record not stored\n", type);
-            break;
-    }
-#else
+void store_in_memory(int type, int record_address, int record_length, unsigned char *parsed_data, Emulator *emulator) {
     switch(type)
     {
         case 0:
@@ -254,89 +154,16 @@ void store_in_memory(int type, int record_address, int record_length, unsigned c
             printf("S%d Stored\n", type);
             break;
         case 9:
-            my_emulator.starting_address = (short) record_address;
-            my_emulator.reg_file[REGISTER][PROG_COUNTER].word = my_emulator.starting_address;
+            emulator->starting_address = (short) record_address;
+            emulator->reg_file[REGISTER][PROG_COUNTER].word = emulator->starting_address;
             printf("Program starting Addr = %04x\n",
-                   my_emulator.starting_address);
+                   emulator->starting_address);
             break;
         default:
             printf("Unknown Type {%d} record not stored\n", type);
             break;
     }
-//        if (type == 0)
-//        {
-//            printf("Loaded File: %s\n", parsed_data);
-//        }
-//        else if (type == 1 || type == 2)
-//        {
-//            memcpy(xm23_memory[type-1].byte + record_address, parsed_data, record_length);
-//            printf("S%d Stored\n", type);
-//        }
-//        else if (type == 9)
-//        {
-//            my_emulator.starting_address = (short)record_address;
-//            my_emulator.reg_file[REGISTER][PROG_COUNTER].word = my_emulator.starting_address;
-//            printf("Program starting Addr = %04x\n", my_emulator.starting_address);
-//        }
-//        else
-//        {
-//            printf("Unknown Type {%d} record not stored\n", type);
-//        }
-#endif
-
 }
-
-#ifdef TWO_MEM_ARRAY
-void display_data() {
-    int lower_lookup;
-    int upper_lookup;
-    char mem_type;
-    printf("Enter lower, upper, memory type (I/D)");
-    scanf("%4x %4x %c", &lower_lookup, &upper_lookup, &mem_type);
-    printf("Entered Memory bounds %4x --> %4x,", lower_lookup, upper_lookup);
-
-    if (tolower(mem_type) == 'i')
-    {
-        printf("Searching Instruction memory: \n");
-        for (int i = lower_lookup; i < upper_lookup; ++i)
-        {
-            if (i % MEMORY_LINE_LENGTH == 0)
-            {
-                printf("%04x: ", i);
-            }
-            //print byte by byte of imem
-            printf("%02x, ", IMEM[i]);
-            if (i > lower_lookup && (i + 1) % MEMORY_LINE_LENGTH == 0)
-            {
-                printf("\n");
-            }
-        }
-    }
-    else if (tolower(mem_type) == 'd')
-    {
-        printf("Searching Data memory: \n");
-        for (int i = lower_lookup; i < upper_lookup; ++i)
-        {
-            // print starting address
-            if (i % MEMORY_LINE_LENGTH == 0) //print starting address
-            {
-                printf("%04x: ", i);
-            }
-            //print byte by byte of dmem
-            printf("%02x, ", DMEM[i]);
-            if (i > lower_lookup &&
-                (i + 1) % MEMORY_LINE_LENGTH == 0) //newline after 16 bytes printed
-            {
-                printf("\n");
-            }
-        }
-    }
-    else
-    {
-        printf("Unknown value entered\n");
-    }
-}
-#else
 /*
  * @brief display_loader_memory displays the loader memory in both raw and ascii
  * it prints on a line by line basis using 16 bytes as the line length so the
@@ -395,8 +222,6 @@ void display_loader_memory()
     }
 
 }
-#endif
-
 void parse_data(char *string_data, unsigned char **converted_data,
                 unsigned char *sum) {
 

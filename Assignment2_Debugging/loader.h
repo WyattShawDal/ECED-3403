@@ -25,7 +25,7 @@
 #define VALID_CHECKSUM 255
 #define BYTE_MEMORY_SIZE 1<<16
 #define WORD_MEMORY_SIZE 1<<15
-#define REG_CON 2
+#define REG_FILE_OPTIONS 2
 #define REGFILE_SIZE 8
 #define REGISTER 0
 #define CONSTANT 1
@@ -45,18 +45,18 @@ typedef union memory
     unsigned char byte[BYTE_MEMORY_SIZE];
     unsigned short word[WORD_MEMORY_SIZE];
 }Memory;
+//forward declaration
+typedef struct emulator_data Emulator;
 
-
-void load(FILE *open_file, char *file_name);
-void menu();
+void load(FILE *open_file, char *file_name, Emulator *emulator);
 void display_data();
 void parse_data(char *string_data, unsigned char **converted_data,
                 unsigned char *sum);
 
 bool test_checksum(unsigned char length_byte, unsigned short address_bytes,
                    char *checksum_byte, unsigned char data_sum);
-void clean_data(char* s_record);
-void store_in_memory(int type, int record_address, int record_length, unsigned char* parsed_data);
+void clean_data(char *s_record, Emulator *emulator);
+void store_in_memory(int type, int record_address, int record_length, unsigned char *parsed_data, Emulator *emulator);
 bool record_check(char * s_record);
 void display_loader_memory();
 

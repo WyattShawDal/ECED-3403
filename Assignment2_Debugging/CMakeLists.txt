@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.28)
+cmake_minimum_required(VERSION 3.26)
 project(Assignment2_Debugging C)
 
 set(CMAKE_C_STANDARD 11)
