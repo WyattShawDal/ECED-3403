@@ -14,7 +14,7 @@
 
 
 /*
- * @brief load opens a file and reads the contents into memory
+ * @bri ef load opens a file and reads the contents into memory
  * @param open_file the file to open
  * @param file_name the name of the file to open
  */

@@ -49,7 +49,6 @@ typedef union memory
 typedef struct emulator_data Emulator;
 
 void load(FILE *open_file, char *file_name, Emulator *emulator);
-void display_data();
 void parse_data(char *string_data, unsigned char **converted_data,
                 unsigned char *sum);
 

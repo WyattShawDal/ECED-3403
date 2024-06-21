@@ -70,12 +70,14 @@ typedef enum
 
 typedef struct nibbles
 {
+    unsigned short nib0 : 4;
     unsigned short nib1 : 4;
     unsigned short nib2 : 4;
     unsigned short nib3 : 4;
-    unsigned short nib4 : 4;
 }nibbles;
-
+//
+//[ 4][ 3][ 2][ 1]
+//[ SHORT MEMORY ]
 typedef union word_nibbles {
     unsigned short word;
     struct nibbles nibbles;
@@ -89,13 +91,13 @@ typedef union instruction_data
 
 
 typedef struct operands{
+    unsigned short dest : 3;
+    unsigned short source_const : 3;
+    unsigned short register_or_constant : 1;
+    unsigned short word_or_byte : 1;
     unsigned short inc : 1;
     unsigned short dec : 1;
     unsigned short prpo : 1;
-    unsigned short register_or_constant : 1;
-    unsigned short word_or_byte : 1;
-    unsigned short source_const : 3;
-    unsigned short dest : 3;
 }operands;
 
 typedef struct program_status_word

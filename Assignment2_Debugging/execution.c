@@ -34,18 +34,17 @@ void execute_instruction(Emulator *emulator) {
     } else {
         old_dest = emulator->reg_file[REGISTER][dest].byte[LSB];
     }
-
     switch (emulator->opcode) {
         case add:
             printf("ADD Executed\n");
             if (wb == WORD) {
-                emulator->reg_file[REGISTER][dest].word +=
-                        emulator->reg_file[rc][sc].word;
+                emulator->reg_file[REGISTER][dest].word += emulator->reg_file[rc][sc].word;
+
                 update_psw(emulator->reg_file[REGISTER][dest].word, emulator,
                            old_dest, emulator->reg_file[rc][sc].word);
             } else {
-                emulator->reg_file[REGISTER][dest].byte[LSB] +=
-                        emulator->reg_file[rc][sc].byte[LSB];
+                emulator->reg_file[REGISTER][dest].byte[LSB] += emulator->reg_file[rc][sc].byte[LSB];
+
                 update_psw(emulator->reg_file[REGISTER][dest].byte[LSB],
                            emulator, old_dest, emulator->reg_file[rc][sc].byte[LSB]);
             }
@@ -57,12 +56,12 @@ void execute_instruction(Emulator *emulator) {
                 emulator->reg_file[REGISTER][dest].word +=
                         (emulator->reg_file[rc][sc].word + emulator->psw.carry);
                 update_psw(emulator->reg_file[REGISTER][dest].word, emulator,
-                           old_dest, 0);
+                           old_dest, emulator->reg_file[rc][sc].byte[LSB]);
             } else {
                 emulator->reg_file[REGISTER][dest].byte[LSB] +=
                         (emulator->reg_file[rc][sc].byte[LSB] + emulator->psw.carry);
                 update_psw(emulator->reg_file[REGISTER][dest].byte[LSB],
-                           emulator, old_dest, 0);
+                           emulator, old_dest, emulator->reg_file[rc][sc].byte[LSB]);
             }
             break;
         case sub:
@@ -212,7 +211,6 @@ void execute_instruction(Emulator *emulator) {
         case sra: //shift right arithmetic
             printf("SRA Executed\n");
 
-            /*todo investigate better ways to do the rotations */
             ((emulator->reg_file[REGISTER][dest].word & 0x0001) == 1) ? emulator->psw.carry = 1 : 0;
             if (wb == WORD) {
                 /* save the value of the MSbit into temp */
@@ -222,8 +220,6 @@ void execute_instruction(Emulator *emulator) {
                 /* restore the MSbit */
                 emulator->reg_file[REGISTER][dest].word |= temp;
             } else {
-                /*todo check if we should be checking the msbit of low byte or
-                 * whole byte*/
 
                 /* save the value of the MSbit into temp */
                 emulator->reg_file[REGISTER][dest].byte[LSB] & BYTE_MSb ? temp = BYTE_MSb : 0;
@@ -262,7 +258,7 @@ void execute_instruction(Emulator *emulator) {
             emulator->reg_file[REGISTER][dest].byte[MSB] = emulator->reg_file[REGISTER][dest].byte[LSB];
             emulator->reg_file[REGISTER][dest].byte[LSB] = temp_reg.byte[MSB];
             break;
-        case sxt:
+        case sxt: //sign extend
             printf("SXT Executed\n");
             emulator->reg_file[REGISTER][dest].byte[LSB] & BYTE_MSb ? emulator->reg_file[REGISTER][dest].byte[MSB] |= 0xFF: 0;
             break;
@@ -298,6 +294,7 @@ void execute_instruction(Emulator *emulator) {
 }
 
 /*
+ *
  * @brief This function updates the program status word based on the result of
  * executed operations, not all operations will cause this function to be called
  * @param result the result of the previous operation
@@ -309,7 +306,7 @@ void execute_instruction(Emulator *emulator) {
 
 void update_psw(unsigned short result, Emulator *emulator, unsigned short old_dest, unsigned short source) {
     unsigned short ms_bit;
-    unsigned char shift_size = 0;
+    unsigned char shift_size;
     if (emulator->my_operands.word_or_byte == WORD) {
         ms_bit = WORD_MSb;
         shift_size = WORD_SHIFT;
@@ -328,13 +325,18 @@ void update_psw(unsigned short result, Emulator *emulator, unsigned short old_de
 }
 
 #define RESET_HEX 10
-
+/*
+ * @brief This function performs a binary coded decimal addition on the source and destination registers
+ *
+ *
+ */
 void bcd_addition(Emulator *emulator) {
     //set operand values to local variables
     unsigned char dest = emulator->my_operands.dest;
     unsigned char wb = emulator->my_operands.word_or_byte;
     unsigned char rc = emulator->my_operands.register_or_constant;
     unsigned char sc = emulator->my_operands.source_const;
+
 
     //create nibble structs to hold the bcd values
     word_nibbles source_bcd;
@@ -350,12 +352,12 @@ void bcd_addition(Emulator *emulator) {
         //if the values from the constants table are either 16 or 32 then convert them to bcd
         switch (source_bcd.word) {
             case 16:
-                source_bcd.nibbles.nib2 = 1;
-                source_bcd.nibbles.nib1 = 6;
+                source_bcd.nibbles.nib1 = 1;
+                source_bcd.nibbles.nib0 = 6;
                 break;
             case 32:
-                source_bcd.nibbles.nib2 = 3;
-                source_bcd.nibbles.nib1 = 2;
+                source_bcd.nibbles.nib1 = 3;
+                source_bcd.nibbles.nib0 = 2;
                 break;
             //default case is for the case where the value is not 16 or 32 which means found a hex value that is not
             //a bcd value for us to handle, programmer is responsible
@@ -364,26 +366,26 @@ void bcd_addition(Emulator *emulator) {
         }
     }
     //work our way up from lower nibble to highest nibble, if the value exceeds 9 then subtract 10 and add 1 to the next nibble
+    result_bcd.nibbles.nib0 += dest_bcd.nibbles.nib0 + source_bcd.nibbles.nib0;
+    if (result_bcd.nibbles.nib0 > 9) {
+        result_bcd.nibbles.nib0 -= RESET_HEX;
+        result_bcd.nibbles.nib1++;
+    }
     result_bcd.nibbles.nib1 += dest_bcd.nibbles.nib1 + source_bcd.nibbles.nib1;
     if (result_bcd.nibbles.nib1 > 9) {
         result_bcd.nibbles.nib1 -= RESET_HEX;
-        result_bcd.nibbles.nib2++;
-    }
-    result_bcd.nibbles.nib2 += dest_bcd.nibbles.nib2 + source_bcd.nibbles.nib2;
-    if (result_bcd.nibbles.nib2 > 9) {
-        result_bcd.nibbles.nib2 -= RESET_HEX;
         //if dadd.b set the carry flag and don't increment the next nibble, else increment the next nibble
-        wb == WORD ? result_bcd.nibbles.nib3++ : (emulator->psw.carry = 1);
+        wb == WORD ? result_bcd.nibbles.nib2++ : (emulator->psw.carry = 1);
     }
     if (wb == WORD) {
+        result_bcd.nibbles.nib2 += dest_bcd.nibbles.nib2 + source_bcd.nibbles.nib2;
+        if (result_bcd.nibbles.nib2 > 9) {
+            result_bcd.nibbles.nib2 -= RESET_HEX;
+            result_bcd.nibbles.nib3++;
+        }
         result_bcd.nibbles.nib3 += dest_bcd.nibbles.nib3 + source_bcd.nibbles.nib3;
         if (result_bcd.nibbles.nib3 > 9) {
             result_bcd.nibbles.nib3 -= RESET_HEX;
-            result_bcd.nibbles.nib4++;
-        }
-        result_bcd.nibbles.nib4 += dest_bcd.nibbles.nib4 + source_bcd.nibbles.nib4;
-        if (result_bcd.nibbles.nib4 > 9) {
-            result_bcd.nibbles.nib4 -= RESET_HEX;
             emulator->psw.carry = 1;
         } else {
             emulator->psw.carry = 0;
