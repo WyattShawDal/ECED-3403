@@ -151,10 +151,10 @@ typedef struct emulator_data
 void menu(Emulator *emulator);
 void init_emulator(Emulator *emulator);
 
-void print_psw(Emulator emulator);
+void print_psw(Emulator *emulator);
 
 //decoding
-void print_registers(Emulator emulator);
+void print_registers(Emulator *emulator);
 void modify_registers(Emulator *emulator);
 void modify_memory_locations(Emulator *emulator);
 void set_breakpoint(Emulator *emulator);

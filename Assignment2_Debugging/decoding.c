@@ -5,34 +5,37 @@
  * Module Info: The module implements the decoding functionality of the emulator, including
  * decoding instructions, printing registers, and modifying registers
  *
+ * !!NOTE!! GET_MEM_LOCATION is used only to allow for matching address to the .lis file, it is not needed for functionality
+ * and can be removed / adjusted as needed. For demoing purposes it has been left in.
+ *
  */
 
 #include "emulation.h"
 #include "instruction_table.h"
 
 
-void print_psw(Emulator emulator)
+void print_psw(Emulator *emulator)
 {
-    printf("CARRY: %d\nOVERFLOW: %d\nNEGATIVE: %d\nZERO: %d\n", emulator.psw.carry, emulator.psw.overflow,
-           emulator.psw.negative, emulator.psw.zero);
+    printf("CARRY: %d\nOVERFLOW: %d\nNEGATIVE: %d\nZERO: %d\n", emulator->psw.carry, emulator->psw.overflow,
+           emulator->psw.negative, emulator->psw.zero);
 }
 
 /*
  * @brief This function prints the registers from the reg_file in the emulator
  */
-void print_registers(Emulator emulator)
+void print_registers(Emulator *emulator)
 {
 
     /* Loop until we reach the base pointer */
     for (int i = 0; i < BASE_PTR; ++i)
     {
-        printf("R%d (GPR%d) = %04X \n", i, i, emulator.reg_file[REGISTER][i].word);
+        printf("R%d (GPR%d) = %04X \n", i, i, emulator->reg_file[REGISTER][i].word);
     }
     /* prints done separately so we can provide a name for the register */
-    printf("R%d (BP)   = %04X \n",BASE_PTR, emulator.reg_file[REGISTER][BASE_PTR].word);
-    printf("R%d (LR)   = %04X \n",LINK_REG, emulator.reg_file[REGISTER][LINK_REG].word);
-    printf("R%d (SP)   = %04X \n",STACK_PTR, emulator.reg_file[REGISTER][STACK_PTR].word);
-    printf("R%d (PC)   = %04X \n",PROG_COUNTER, emulator.reg_file[REGISTER][PROG_COUNTER].word);
+    printf("R%d (BP)   = %04X \n",BASE_PTR, emulator->reg_file[REGISTER][BASE_PTR].word);
+    printf("R%d (LR)   = %04X \n",LINK_REG, emulator->reg_file[REGISTER][LINK_REG].word);
+    printf("R%d (SP)   = %04X \n",STACK_PTR, emulator->reg_file[REGISTER][STACK_PTR].word);
+    printf("R%d (PC)   = %04X \n",PROG_COUNTER, emulator->reg_file[REGISTER][PROG_COUNTER].word);
 
 }
 /*
@@ -124,7 +127,9 @@ void set_breakpoint(Emulator *emulator)
     }
     else
     {
-        emulator->breakpoint = temp_breakpoint;
+        //add four to adjust breakpoint value given the nops from starting of pipeline
+        emulator->breakpoint = temp_breakpoint + 4;
+
         printf("Set breakpoint @ %04x\n", emulator->breakpoint);
     }
 }
@@ -249,6 +254,7 @@ void parse_reg_manip_block(Emulator *emulator, instruction_data current_instruct
     {
         /* Check bits 5-3 to identify function */
         unsigned char comparison_value = (emulator->operand_bits >> 3) & EXTRACT_LOW_THREE_BITS;
+        emulator->my_operands.word_or_byte = (current_instruction.byte[LSB] >> 6) & BIT0;
         emulator->my_operands.dest = emulator->operand_bits & EXTRACT_LOW_THREE_BITS;
         switch(comparison_value)
         {

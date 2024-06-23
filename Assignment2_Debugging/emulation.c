@@ -3,13 +3,17 @@
  * Date June 20 2024
  * Written By: Wyatt Shaw
  * Module Info: This module defines the functions for the operation of the emulator
+ *
+ * !!NOTE!! Breakpoint will break *after* the instruction. This is atypical for breakpoints, and may be modified in
+ * the future, but for now it is suitable as it allows the developer to view the post effect of the instruction quickly
+ * IE PSW.
  */
 #include "emulation.h"
 #include <signal.h>
 #include <unistd.h>
 
 /*
- * @brief interrupt handler for halting the emulation using ctrl-c
+ * @brief interrupt handler for halting the emulation using ctrl-c without exiting the program
  */
 volatile sig_atomic_t stop_loop;
 void int_handler(int signum)
@@ -39,23 +43,29 @@ void run_emulator(Emulator *emulator)
     do
     {
 
+        //this if else, combo implements the pipeline
         if(IS_EVEN(emulator->clock))
         {
             emulator->is_single_step ? printf("Start PC: %04x, BRKPT: %04x, CLK: %d\n", emulator->reg_file[REGISTER][PROG_COUNTER].word, emulator->breakpoint, emulator->clock) : printf("");
-            fetch_instruction(emulator, EVEN);
-            decode_instruction(emulator);
+            fetch_instruction(emulator, EVEN); //f0
+            decode_instruction(emulator); //d
         }
+
         else
         {
-            fetch_instruction(emulator, ODD);
-            execute_instruction(emulator);
+            fetch_instruction(emulator, ODD); //f1
+            execute_instruction(emulator); //e
         }
+        //after pipeline stages increment clock
         emulator->clock++;
-        if ((emulator->is_single_step == true && IS_EVEN(emulator->clock)) || emulator->reg_file[REGISTER][PROG_COUNTER].word + 2 >= emulator->breakpoint)
+        //now we should check if we should open the menu
+        if ((emulator->is_single_step == true && IS_EVEN(emulator->clock)) || emulator->reg_file[REGISTER][PROG_COUNTER].word == emulator->breakpoint)
         {
             printf("END PC: %04x, BRKPT: %04x, CLK: %d\n", emulator->reg_file[REGISTER][PROG_COUNTER].word, emulator->breakpoint, emulator->clock);
             menu(emulator);
         }
+        //then check if an interrupt has occurred, which will also open the menu. This could be place in the above loop with another or
+        //however, since the reason for pausing is different, and this section involves the interrupt, separation was desired for clarity.
         else if(stop_loop)
         {
             //resetting the signal handler
@@ -78,14 +88,19 @@ void fetch_instruction(Emulator *emulator, int even)
 {
     if(even)//f0
     {
+        //set the IMAR to the current program counter
         emulator->i_control.IMAR = emulator->reg_file[REGISTER][PROG_COUNTER].word;
-
+        //get a new program counter
         emulator->reg_file[REGISTER][PROG_COUNTER].word += 2;
+        //set xCTRL for the memory controller
         emulator->xCTRL = I_MEMORY;
     }
     else//f1
     {
+        //call the memory_controller to load a new instruction into the memory buffer register
         memory_controller(emulator);
+        //set the instruction register to the IMBR
+        //instruction register is used during decoding
         emulator->instruction_register = emulator->i_control.IMBR;
     }
 }
@@ -131,6 +146,7 @@ void init_emulator(Emulator *emulator)
 void menu(Emulator *emulator) {
     char command = '\0';
     char input_string[MAX_RECORD_LEN];
+    //if the emulator hasn't yet started print out all the options, this is to prevent printing everytime we call menu
     if(!emulator->has_started)
     {
         printf("Commands:\n"
@@ -140,6 +156,7 @@ void menu(Emulator *emulator) {
 
     }
     do
+    //enter loop for entering commands, this allows us to do multiple commands from one menu() call
     {
         printf("Enter Option (? for list of commands): ");
         if (scanf(" %c", &command) != 1)
@@ -161,26 +178,32 @@ void menu(Emulator *emulator) {
                 display_loader_memory();
                 break;
             case 'g':
+                //no file loaded
                 if(!emulator->is_memset)
                 {
                     printf("No file loaded, cannot run emulator\n");
                     break;
                 }
+                //if it's single_step and the emulator has started we just want to move to the next clock cycle
                 else if(emulator->has_started && emulator->is_single_step)
                 {
                     return;
                 }
+                //if the loop was interrupted and is now resuming print a message reflecting that
+                //reset user_interrupt variable
                 else if (emulator->has_started && emulator->is_user_interrupt)
                 {
                     printf("Resuming emulation\n");
                     emulator->is_user_interrupt = false;
                     return;
                 }
+                //if the emulator has started and isn't in single step mode, we don't want to start it again
                 else if(emulator->has_started)
                 {
                     printf("Emulator is already running\n");
                     return;
                 }
+                //if the emulator hasn't started, we can start it
                 else
                 {
                     printf("Running Emulator\n");
@@ -188,15 +211,16 @@ void menu(Emulator *emulator) {
                     break;
                 }
             case 's':
+                //toggle single step
                 emulator->is_single_step ? printf("[disabling]") : printf("[enabling]");
                 printf(" single step\n");
                 emulator->is_single_step = !emulator->is_single_step;
                 break;
             case 'p':
-                print_psw(*emulator);
+                print_psw(emulator);
                 break;
             case 'r':
-                print_registers(*emulator);
+                print_registers(emulator);
                 break;
             case 't':
                 modify_registers(emulator);
