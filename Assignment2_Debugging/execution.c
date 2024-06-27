@@ -8,6 +8,7 @@
 #include "emulation.h"
 
 
+
 #define WORD 0
 #define BYTE 1
 
@@ -26,16 +27,18 @@ void execute_instruction(Emulator *emulator) {
     unsigned short source;
 
     /* local variables copies of operands are made to improve readability */
-    unsigned char dest = emulator->my_operands.dest;
-    unsigned char wb = emulator->my_operands.word_or_byte;
-    unsigned char rc = emulator->my_operands.register_or_constant;
-    unsigned char sc = emulator->my_operands.source_const;
+    unsigned char dest = emulator->inst_operands.dest;
+    unsigned char wb = emulator->inst_operands.word_or_byte;
+    unsigned char rc = emulator->inst_operands.register_or_constant;
+    unsigned char sc = emulator->inst_operands.source_const;
 
     if (wb == WORD) {
+        //destination before any operations
         old_dest = emulator->reg_file[REGISTER][dest].word;
         destination = emulator->reg_file[REGISTER][dest].word;
         source = emulator->reg_file[rc][sc].word;
     } else {
+        //destination before any operations
         old_dest = emulator->reg_file[REGISTER][dest].byte[LSB];
         destination = emulator->reg_file[REGISTER][dest].byte[LSB];
         source = emulator->reg_file[rc][sc].byte[LSB];
@@ -61,6 +64,7 @@ void execute_instruction(Emulator *emulator) {
         case dadd: // decimal add
             printf("DADD Executed\n");
             bcd_addition(emulator);
+            destination = emulator->reg_file[REGISTER][dest].word;
             break;
         case cmp:
             printf("CMP Executed\n");
@@ -173,7 +177,7 @@ void execute_instruction(Emulator *emulator) {
     // Update the PSW for arithmetic and logical operations
     if (emulator->opcode <mov) {
         //need to pass in the one's complement of source for subtractions
-        if(emulator->opcode == sub ||emulator->opcode == subc)
+        if(emulator->opcode == sub || emulator->opcode == subc)
         {
             update_psw(destination, emulator, old_dest, ~source);
 
@@ -194,10 +198,10 @@ void execute_instruction(Emulator *emulator) {
     unsigned short source;
 
     /* local variables copies of operands are made to improve readability */
-    unsigned char dest = emulator->my_operands.dest;
-    unsigned char wb = emulator->my_operands.word_or_byte;
-    unsigned char rc = emulator->my_operands.register_or_constant;
-    unsigned char sc = emulator->my_operands.source_const;
+    unsigned char dest = emulator->inst_operands.dest;
+    unsigned char wb = emulator->inst_operands.word_or_byte;
+    unsigned char rc = emulator->inst_operands.register_or_constant;
+    unsigned char sc = emulator->inst_operands.source_const;
 
     if (wb == WORD) {
         old_dest = emulator->reg_file[REGISTER][dest].word;
@@ -478,7 +482,7 @@ void execute_instruction(Emulator *emulator) {
 void update_psw(unsigned short result, Emulator *emulator, unsigned short old_dest, unsigned short source) {
     unsigned short ms_bit;
     unsigned char shift_size;
-    if (emulator->my_operands.word_or_byte == WORD) {
+    if (emulator->inst_operands.word_or_byte == WORD) {
         ms_bit = WORD_MSb;
         shift_size = WORD_SHIFT;
         emulator->psw.negative = result & ms_bit ? 1 : 0;
@@ -495,23 +499,20 @@ void update_psw(unsigned short result, Emulator *emulator, unsigned short old_de
         emulator->psw.carry = carry_check[(source & ms_bit) >> shift_size][(old_dest & ms_bit) >> shift_size][(result & ms_bit) >> shift_size];
         emulator->psw.overflow = overflow_check[(source & ms_bit) >> shift_size][(old_dest & ms_bit) >> shift_size][(result & ms_bit) >> shift_size];
     }
-
+    emulator->do_auto_psw_print ?  print_psw(emulator, SINGLE_LINE): printf("") ;
 }
 
 #define RESET_HEX 10
 /*
  * @brief This function performs a binary coded decimal addition on the source and destination registers
  *
- *
  */
 void bcd_addition(Emulator *emulator) {
     //set operand values to local variables
-    unsigned char dest = emulator->my_operands.dest;
-    unsigned char wb = emulator->my_operands.word_or_byte;
-    unsigned char rc = emulator->my_operands.register_or_constant;
-    unsigned char sc = emulator->my_operands.source_const;
-
-
+    unsigned char dest = emulator->inst_operands.dest;
+    unsigned char wb = emulator->inst_operands.word_or_byte;
+    unsigned char rc = emulator->inst_operands.register_or_constant;
+    unsigned char sc = emulator->inst_operands.source_const;
     //create nibble structs to hold the bcd values
     word_nibbles source_bcd;
     word_nibbles dest_bcd;
@@ -565,7 +566,15 @@ void bcd_addition(Emulator *emulator) {
             emulator->psw.carry = 0;
         }
     }
+    if((result_bcd.word == 0 && emulator->inst_operands.word_or_byte == WORD)
+    || ((result_bcd.word & 0x00FF) == 0 && emulator->inst_operands.word_or_byte == BYTE))
+    {
+        emulator->psw.zero = 1;
+    }
+    else
+    {
+        emulator->psw.zero = 0;
+    }
     //set the result of the bcd addition to the destination register
     emulator->reg_file[REGISTER][dest].word = result_bcd.word;
-
 }

@@ -13,6 +13,16 @@
 #define BYTE_SHIFT 7
 #define WORD_SHIFT 15
 
+#define ARITHMETIC_LOWER_BOUND 0x40
+#define ARITHMETIC_UPPER_BOUND 0x4C
+#define REG_MANIP_LOWER_BOUND 0x4C
+#define REG_MANIP_UPPER_BOUND 0x4D
+#define REG_INIT_LOWER_BOUND 0x60
+#define REG_INIT_UPPER_BOUND 0x7F
+
+#define MULTI_LINE 1
+#define SINGLE_LINE (-1)
+
 typedef enum
 {
     add =1 ,
@@ -130,28 +140,31 @@ typedef struct d_control_registers
 #define REGFILE_SIZE 8
 typedef struct emulator_data
 {
-    short opcode;
-    short operand_bits; //change
-    operands my_operands; //rename
-    program_status_word psw;
+    short opcode; //opcode of instruction, instructions are 16 bits so this can hold any possible opcode
+    short operand_bits; //temp variable for extracting bit values
+    operands inst_operands; //rename
+    program_status_word psw; //status word bitfield struct
     instruction_data reg_file[REG_FILE_OPTIONS][REGFILE_SIZE];
-    InstControlRegisters i_control;
-    DataControlRegisters d_control;
-    bool is_memset;
-    bool has_started;
-    bool is_single_step;
-    bool is_user_interrupt;
+    InstControlRegisters i_control; //registers to emulate xm23p behaviour
+    DataControlRegisters d_control;//registers to emulate xm23p behaviour
+    bool is_memset; //bool to check if a file has been loaded
+    bool has_started; //bool to check if the emulator has started
+    bool is_single_step; //bool to check if the emulator will run in single step mode or continuous
+    bool do_auto_psw_print; //DEBUGGING bool to check if the emulator will print the psw after each instruction
+    bool is_user_interrupt; //bool to check if the user has interrupted the emulator via a SIGINT
     unsigned char xCTRL;
     unsigned short instruction_register;
     unsigned char move_byte;
-    unsigned int clock;
+    unsigned long int clock;
     unsigned int starting_address;
     unsigned int breakpoint;
 }Emulator;
 void menu(Emulator *emulator);
 void init_emulator(Emulator *emulator);
 
-void print_psw(Emulator *emulator);
+
+void print_psw(Emulator *emulator, int style);
+void print_menu_options();
 
 //decoding
 void print_registers(Emulator *emulator);

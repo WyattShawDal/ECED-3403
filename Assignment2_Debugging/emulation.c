@@ -126,7 +126,8 @@ void memory_controller(Emulator *emulator)
  */
 void init_emulator(Emulator *emulator)
 {
-    emulator->breakpoint = (BYTE_MEMORY_SIZE) - 1;;
+    //emulator is created via a calloc so we can just initialize values that are not going to be zero here
+    emulator->breakpoint = (BYTE_MEMORY_SIZE) - 1;
     instruction_data reg_file[REG_FILE_OPTIONS][REGFILE_SIZE] = {
             {
                     { .word = 0 }, { .word = 0 }, { .word = 0 }, { .word = 0 },
@@ -139,6 +140,12 @@ void init_emulator(Emulator *emulator)
     };
     memcpy(emulator->reg_file, reg_file, sizeof (unsigned short) * REG_FILE_OPTIONS * REGFILE_SIZE);
 }
+void print_menu_options()
+{
+    printf("Commands:\n"
+           "Begin Emulation (G)\nEnable Single Step (S)\nLoad (L)\nDisplay Memory (M)\nPrint PSW (P)\nPrint Registers (R)"
+           "\nModify Register Values (T)\nModify Memory Value (U)\nReset PSW (Z)\nSet Breakpoint Value (Y)\nQuit (Q)\n");
+}
 
 /*
  * @brief menu provides a menu for the user to interact with the xm-23p emulator
@@ -149,11 +156,7 @@ void menu(Emulator *emulator) {
     //if the emulator hasn't yet started print out all the options, this is to prevent printing everytime we call menu
     if(!emulator->has_started)
     {
-        printf("Commands:\n"
-               "Begin Emulation (G)\nEnable Single Step (S)\nLoad (L)\nDisplay Memory (M)\n");
-        printf("Print PSW (P)\nPrint Registers (R)\nModify Register Values (T)\n"
-               "Modify Memory Value (U)\nReset PSW (Z)\nSet Breakpoint Value (Y)\nQuit (Q)\n");
-
+        print_menu_options();
     }
     do
     //enter loop for entering commands, this allows us to do multiple commands from one menu() call
@@ -217,7 +220,7 @@ void menu(Emulator *emulator) {
                 emulator->is_single_step = !emulator->is_single_step;
                 break;
             case 'p':
-                print_psw(emulator);
+                print_psw(emulator, MULTI_LINE);
                 break;
             case 'r':
                 print_registers(emulator);
@@ -234,9 +237,15 @@ void menu(Emulator *emulator) {
             case 'q':
                 printf("Exiting menu\n");
                 break;
+            case 'h':
+                //FOR PROGRAMMER DEBUGGING, FEATURE NOT FINAL FOR ASSIGNMENT 2
+#ifdef DEBUGGING_TOOLS
+                emulator->do_auto_psw_print ? printf("[disabling]") : printf("[enabling]");
+                emulator->do_auto_psw_print = !emulator->do_auto_psw_print;
+#endif
+                break;
             case '?':
-                printf("Commands:\n"
-                       "Begin Emulation (G)\nEnable Single Step (S)\nLoad (L)\nDisplay Memory (M)\nDebug Menu (D)\nQuit (Q)\n");
+                print_menu_options();
                 break;
             case 'z':
                 printf("Clearing PSW\n");
