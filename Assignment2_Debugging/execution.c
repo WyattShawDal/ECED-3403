@@ -15,11 +15,16 @@
 unsigned char carry_check[2][2][2] = {0, 0, 1, 0, 1, 0, 1, 1};
 unsigned char overflow_check[2][2][2] = {0, 1, 0, 0, 0, 0, 1, 0};
 
+void execute_1(Emulator *emulator)
+{
+    emulator->xCTRL = D_MEMORY;
+}
+
 /*
  * @brief This function executes the instruction based on the current opcode
  * in the emulator
  */
-void execute_instruction(Emulator *emulator) {
+void execute_0(Emulator *emulator) {
     instruction_data temp_reg;
     unsigned short temp;
     unsigned short old_dest;
@@ -138,6 +143,26 @@ void execute_instruction(Emulator *emulator) {
         case sxt: // sign extend
             printf("SXT Executed\n");
             (destination & BYTE_MSb) == BYTE_MSb ? destination |= 0xFF00 : 0;
+            break;
+        case ld:
+            printf("LOAD Executed\n");
+            if(emulator->inst_operands.prpo == 0)
+            {
+                //post operation
+            }
+            else
+            {
+                //pre operation
+            }
+            break;
+        case st:
+            printf("STORE Executed\n");
+            break;
+        case str:
+            printf("STORE RELATIVE Executed\n");
+            break;
+        case ldr:
+            printf("LOAD RELATIVE Executed\n");
             break;
         case movl:
             printf("MOVL Executed\n");

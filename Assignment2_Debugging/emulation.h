@@ -46,7 +46,11 @@ typedef enum
     movl,
     movlz,
     movls,
-    movh
+    movh,
+    ld,
+    st,
+    ldr,
+    str,
 
 }OPCODES;
 
@@ -183,7 +187,8 @@ void parse_load_store(Emulator *emulator, instruction_data current_instruction, 
 //executions
 void
 update_psw(unsigned short result, Emulator *emulator, unsigned short old_dest, unsigned short source);
-void execute_instruction(Emulator *emulator);
+void execute_1(Emulator *emulator);
+void execute_0(Emulator *emulator);
 void fetch_instruction(Emulator *emulator, int even);
 void memory_controller(Emulator *emulator);
 void run_emulator(Emulator *emulator);

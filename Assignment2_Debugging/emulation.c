@@ -32,7 +32,7 @@ void int_handler(int signum)
 #define ODD 0
 void run_emulator(Emulator *emulator)
 {
-    /*allows us to handle SIGINT (CTRL-C gracefully and stop the while loop) without exiting the process*/
+    //allows us to handle SIGINT (CTRL-C gracefully and stop the while loop) without exiting the process
     signal(SIGINT, int_handler);
     if(emulator->has_started)
     {
@@ -42,19 +42,18 @@ void run_emulator(Emulator *emulator)
     emulator->has_started = true;
     do
     {
-
         //this if else, combo implements the pipeline
         if(IS_EVEN(emulator->clock))
         {
             emulator->is_single_step ? printf("Start PC: %04x, BRKPT: %04x, CLK: %d\n", emulator->reg_file[REGISTER][PROG_COUNTER].word, emulator->breakpoint, emulator->clock) : printf("");
             fetch_instruction(emulator, EVEN); //f0
-            decode_instruction(emulator); //d
+            decode_instruction(emulator); //d0
+            execute_1(emulator); //e1
         }
-
         else
         {
             fetch_instruction(emulator, ODD); //f1
-            execute_instruction(emulator); //e
+            execute_0(emulator); //e0
         }
         //after pipeline stages increment clock
         emulator->clock++;
