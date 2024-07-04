@@ -182,6 +182,8 @@ void execute_0(Emulator *emulator) {
 //            printf("MOVH Executed\n");
             emulator->reg_file[REGISTER][dest].byte[MSB] = emulator->move_byte;
             break;
+/* setcc and clrcc early return to prevent another checking of the PSW. This prevents the PSW from being improperly reset
+ * after these instructions have ran*/
         case setcc:
             emulator->psw.word |= emulator->cpu_ops.byte;
 
