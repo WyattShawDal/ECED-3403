@@ -27,12 +27,15 @@ void int_handler(int signum)
  * stages
  *
  */
+
 #define IS_EVEN(x) (x % 2 == 0)
 #define EVEN 1
 #define ODD 0
+
 void run_emulator(Emulator *emulator)
 {
     //allows us to handle SIGINT (CTRL-C gracefully and stop the while loop) without exiting the process
+    unsigned short previously_decoded;
     signal(SIGINT, int_handler);
     if(emulator->has_started)
     {
@@ -40,31 +43,62 @@ void run_emulator(Emulator *emulator)
         return;
     }
     emulator->has_started = true;
+
+        printf("CLK    PC    INST    FETCH     DECODE    EXECUTE\n");
+
     do
     {
         //this if else, combo implements the pipeline
         if(IS_EVEN(emulator->clock))
         {
-            emulator->is_single_step ? printf("Start PC: %04x, BRKPT: %04x, CLK: %d\n", emulator->reg_file[REGISTER][PROG_COUNTER].word, emulator->breakpoint, emulator->clock) : printf("");
+
+            printf("%-5lu %04X   %04X   ", emulator->clock, emulator->reg_file[REGISTER][PROG_COUNTER].word, xm23_memory[I_MEMORY].word[emulator->reg_file[REGISTER][PROG_COUNTER].word >> 1]);
+
+//            emulator->is_single_step ? printf("Start PC: %04x, BRKPT: %04x, CLK: %d\n", emulator->reg_file[REGISTER][PROG_COUNTER].word, emulator->breakpoint, emulator->clock) : printf("");
+
+
+            printf("F0: %04X  ", emulator->reg_file[REGISTER][PROG_COUNTER].word);
+
             fetch_instruction(emulator, EVEN); //f0
+
+            printf("D0: %04X\n", emulator->instruction_register);
+
             decode_instruction(emulator); //d0
-            execute_1(emulator); //e1
+            previously_decoded = emulator->instruction_register;
+            //execute_1(emulator); //e1
+
         }
         else
         {
             fetch_instruction(emulator, ODD); //f1
+
+            printf("%-5lu               F1: %04X             ",emulator->clock, emulator->i_control.IMBR);
+
+
             execute_0(emulator); //e0
+
+            printf("E0: %04X    VNZC: %1d%1d%1d%1d\n", previously_decoded, emulator->psw.bits.overflow, emulator->psw.bits.negative, emulator->psw.bits.zero, emulator->psw.bits.carry);
+            //break after instruction has been executed
+            if(emulator->reg_file[REGISTER][PROG_COUNTER].word == emulator->breakpoint)
+            {
+                emulator->has_started =false;
+                emulator->hide_menu_prompt = false;
+                menu(emulator);
+            }
         }
         //after pipeline stages increment clock
         emulator->clock++;
-        //now we should check if we should open the menu
-        if ((emulator->is_single_step == true && IS_EVEN(emulator->clock)) || emulator->reg_file[REGISTER][PROG_COUNTER].word == emulator->breakpoint)
+        //pause every clocktick
+        if(emulator->stop_on_clock && emulator->is_single_step == true)
         {
-            printf("END PC: %04x, BRKPT: %04x, CLK: %d\n", emulator->reg_file[REGISTER][PROG_COUNTER].word, emulator->breakpoint, emulator->clock);
             menu(emulator);
         }
-        //then check if an interrupt has occurred, which will also open the menu. This could be place in the above loop with another or
-        //however, since the reason for pausing is different, and this section involves the interrupt, separation was desired for clarity.
+        //pause every pc increment
+        else if ((emulator->is_single_step == true && IS_EVEN(emulator->clock)) && emulator->stop_on_clock == false)
+        {
+            menu(emulator);
+        }
+
         else if(stop_loop)
         {
             //resetting the signal handler
@@ -127,6 +161,7 @@ void init_emulator(Emulator *emulator)
 {
     //emulator is created via a calloc so we can just initialize values that are not going to be zero here
     emulator->breakpoint = (BYTE_MEMORY_SIZE) - 1;
+    emulator->stop_on_clock = true;
     instruction_data reg_file[REG_FILE_OPTIONS][REGFILE_SIZE] = {
             {
                     { .word = 0 }, { .word = 0 }, { .word = 0 }, { .word = 0 },
@@ -143,7 +178,8 @@ void print_menu_options()
 {
     printf("Commands:\n"
            "Begin Emulation (G)\nEnable Single Step (S)\nLoad (L)\nDisplay Memory (M)\nPrint PSW (P)\nPrint Registers (R)"
-           "\nModify Register Values (T)\nModify Memory Value (U)\nReset PSW (Z)\nSet Breakpoint Value (Y)\nQuit (Q)\n");
+           "\nModify Register Values (T)\nModify Memory Value (U)\nReset PSW (Z)\nSet Breakpoint Value (Y)\nHide Menu Prompt (H)\n"
+           "Stop Execution on Clock (X)\nQuit (Q)\n");
 }
 
 /*
@@ -160,7 +196,7 @@ void menu(Emulator *emulator) {
     do
     //enter loop for entering commands, this allows us to do multiple commands from one menu() call
     {
-        printf("Enter Option (? for list of commands): ");
+        if(!emulator->hide_menu_prompt) printf("Enter Option (? for list of commands): ");
         if (scanf(" %c", &command) != 1)
         {
             //clearing the input buffer
@@ -170,6 +206,11 @@ void menu(Emulator *emulator) {
         command = (char) tolower(command);
         switch(command)
         {
+            case 'x':
+                emulator->stop_on_clock ? printf("[disabling]") : printf("[enabling]");
+                printf(" stop on clock\n");
+                emulator->stop_on_clock = !emulator->stop_on_clock;
+                break;
             case 'l':
                 printf("Enter name of file to load:");
                 scanf("%70s", input_string);
@@ -237,11 +278,9 @@ void menu(Emulator *emulator) {
                 printf("Exiting menu\n");
                 break;
             case 'h':
-                //FOR PROGRAMMER DEBUGGING, FEATURE NOT FINAL FOR ASSIGNMENT 2
-#ifdef DEBUGGING_TOOLS
-                emulator->do_auto_psw_print ? printf("[disabling]") : printf("[enabling]");
-                emulator->do_auto_psw_print = !emulator->do_auto_psw_print;
-#endif
+                emulator->hide_menu_prompt ? printf("[disabling]") : printf("[enabling]");
+                printf(" hide menu prompt\n");
+                emulator->hide_menu_prompt = !emulator->hide_menu_prompt;
                 break;
             case '?':
                 print_menu_options();

@@ -18,13 +18,13 @@ void print_psw(Emulator *emulator, int style)
 {
     if(style == MULTI_LINE)
     {
-        printf("CARRY: %d\nOVERFLOW: %d\nNEGATIVE: %d\nZERO: %d\n", emulator->psw.carry, emulator->psw.overflow,
-               emulator->psw.negative, emulator->psw.zero);
+        printf("CARRY: %d\nOVERFLOW: %d\nNEGATIVE: %d\nZERO: %d\n", emulator->psw.bits.carry, emulator->psw.bits.overflow,
+               emulator->psw.bits.negative, emulator->psw.bits.zero);
     }
     else
     {
-        printf("PSW --> CARRY: %d OVERFLOW: %d NEGATIVE: %d ZERO: %d\n", emulator->psw.carry, emulator->psw.overflow,
-               emulator->psw.negative, emulator->psw.zero);
+        printf("PSW --> CARRY: %d OVERFLOW: %d NEGATIVE: %d ZERO: %d\n", emulator->psw.bits.carry, emulator->psw.bits.overflow,
+               emulator->psw.bits.negative, emulator->psw.bits.zero);
     }
 }
 
@@ -119,6 +119,7 @@ void modify_memory_locations(Emulator *emulator)
 /*
  * @brief This function allows the user to set a breakpoint in the emulator
  */
+#define PIPELINE_ADJUSTMENT 4
 void set_breakpoint(Emulator *emulator)
 {
     //temporay breakpoint to check if it is valid before setting it
@@ -136,11 +137,14 @@ void set_breakpoint(Emulator *emulator)
     else
     {
         //add four to adjust breakpoint value given the nops from starting of pipeline
-        emulator->breakpoint = temp_breakpoint + 4;
+        emulator->breakpoint = temp_breakpoint + PIPELINE_ADJUSTMENT;
 
-        printf("Set breakpoint @ %04x: .LIS value %04x\n", emulator->breakpoint, emulator->breakpoint - 4);
+        printf("Set breakpoint @ %04x: .LIS value %04x\n", emulator->breakpoint, emulator->breakpoint - PIPELINE_ADJUSTMENT);
     }
 }
+
+void parse_cpu_command_block(Emulator *emulator, instruction_data current_instruction, unsigned short starting_address);
+
 /*
  * @brief This function decodes the instructions in the emulator
  * @param emulator the emulator to decode instructions for
@@ -161,9 +165,13 @@ void decode_instruction(Emulator *emulator)
         //opcode is only the MSB for this group
         parse_arithmetic_block(emulator, current_instruction, emulator->reg_file[REGISTER][PROG_COUNTER].word);
     }
-    else if (current_instruction.byte[MSB] <= REG_MANIP_UPPER_BOUND && current_instruction.byte[MSB] >= REG_MANIP_LOWER_BOUND)
+    else if (current_instruction.byte[MSB] <= REG_MANIP_UPPER_BOUND && current_instruction.byte[MSB] >= REG_MANIP_LOWER_BOUND && ((current_instruction.byte[LSB] & BYTE_MSb) == 0))
     {
         parse_reg_manip_block(emulator,current_instruction, emulator->reg_file[REGISTER][PROG_COUNTER].word);
+    }
+    else if(current_instruction.byte[MSB] <= REG_MANIP_UPPER_BOUND && current_instruction.byte[MSB] >= REG_MANIP_LOWER_BOUND && ((current_instruction.byte[LSB] & BYTE_MSb) == BYTE_MSb))
+    {
+        parse_cpu_command_block(emulator, current_instruction, emulator->reg_file[REGISTER][PROG_COUNTER].word);
     }
 //load store to be implemented here (past a2)
 //        else if (current_instruction.byte[MSB] < 0x60 && current_instruction.byte[MSB] >= 0x58 || current_instruction.byte[MSB] <= 0x9F && current_instruction.byte[MSB] >= 0x80)
@@ -178,14 +186,16 @@ void decode_instruction(Emulator *emulator)
     else
     {
         if(current_instruction.word != 0x0000) {
-            printf("%04X: NOT SUPPORTED = %04x\n", emulator->reg_file[REGISTER][PROG_COUNTER].word, current_instruction.word);
+//            printf("%04X: NOT SUPPORTED = %04x\n", emulator->reg_file[REGISTER][PROG_COUNTER].word, current_instruction.word);
         }
         else {
-            printf("%04X: NOP.\n", emulator->reg_file[REGISTER][PROG_COUNTER].word);
+//            printf("%04X: NOP.\n", emulator->reg_file[REGISTER][PROG_COUNTER].word);
             emulator->opcode = -1;
         }
     }
 }
+
+
 
 #define UPPER_BYTE_MASK 0xFF00
 #define LOWER_NIBBLE_MASK 0x0F
@@ -208,8 +218,8 @@ void parse_arithmetic_block(Emulator *emulator, instruction_data current_instruc
     short instruction_table_index = emulator->opcode & LOWER_NIBBLE_MASK;
     /* get opcode from the table */
     emulator->opcode = arithmetic_instruction_table[instruction_table_index].execution_opcode;
-    printf("%4X: %s ", GET_MEM_LOCATION(starting_addr),
-           arithmetic_instruction_table[instruction_table_index].instruction_name);
+//    printf("%4X: %s ", GET_MEM_LOCATION(starting_addr),
+//           arithmetic_instruction_table[instruction_table_index].instruction_name);
 
     //operand bits are the LSB for this block, so the get RC we can just shift all the way to the right
     //[RC]
@@ -220,11 +230,11 @@ void parse_arithmetic_block(Emulator *emulator, instruction_data current_instruc
 
     if(emulator->inst_operands.register_or_constant == CONSTANT)
     {
-        printf("R/C = %d, W/B = %d, CON = %d , DEST = R%d\n", emulator->inst_operands.register_or_constant, emulator->inst_operands.word_or_byte, emulator->inst_operands.source_const, emulator->inst_operands.dest);
+//        printf("R/C = %d, W/B = %d, CON = %d , DEST = R%d\n", emulator->inst_operands.register_or_constant, emulator->inst_operands.word_or_byte, emulator->inst_operands.source_const, emulator->inst_operands.dest);
     }
     else
     {
-        printf("R/C = %d, W/B = %d, SRC = R%d, DEST = R%d\n", emulator->inst_operands.register_or_constant, emulator->inst_operands.word_or_byte, emulator->inst_operands.source_const, emulator->inst_operands.dest);
+//        printf("R/C = %d, W/B = %d, SRC = R%d, DEST = R%d\n", emulator->inst_operands.register_or_constant, emulator->inst_operands.word_or_byte, emulator->inst_operands.source_const, emulator->inst_operands.dest);
     }
 }
 #define MOV_SWAP 0x0C
@@ -250,16 +260,16 @@ void parse_reg_manip_block(Emulator *emulator, instruction_data current_instruct
         if((current_instruction.byte[LSB] & BIT7) == BIT7)
         {
             emulator->opcode = swap;
-            printf("%04X: SWAP ", GET_MEM_LOCATION(starting_addr));
+//            printf("%04X: SWAP ", GET_MEM_LOCATION(starting_addr));
             unsigned char word_or_byte = 0;
-            printf("W/B = %d, SRC = R%d , DEST = R%d\n", word_or_byte, emulator->inst_operands.source_const, emulator->inst_operands.dest);
+//            printf("W/B = %d, SRC = R%d , DEST = R%d\n", word_or_byte, emulator->inst_operands.source_const, emulator->inst_operands.dest);
         }
         else
         {
             emulator->opcode = mov;
-            printf("%04X: MOV ", GET_MEM_LOCATION(starting_addr));
+//            printf("%04X: MOV ", GET_MEM_LOCATION(starting_addr));
             unsigned char word_or_byte = (current_instruction.byte[LSB] >> 6) & BIT0;
-            printf("W/B = %d, SRC = R%d , DEST = R%d\n", word_or_byte, emulator->inst_operands.source_const, emulator->inst_operands.dest);
+//            printf("W/B = %d, SRC = R%d , DEST = R%d\n", word_or_byte, emulator->inst_operands.source_const, emulator->inst_operands.dest);
         }
     }
     else if(val == BYTE_MANIP)
@@ -272,25 +282,53 @@ void parse_reg_manip_block(Emulator *emulator, instruction_data current_instruct
         {
             case SRA:
                 emulator->opcode = sra;
-                printf("%04X: SRA, DEST = R%d\n",  GET_MEM_LOCATION(starting_addr), emulator->inst_operands.dest);
+//                printf("%04X: SRA, DEST = R%d\n",  GET_MEM_LOCATION(starting_addr), emulator->inst_operands.dest);
                 break;
             case RRC:
                 emulator->opcode = rrc;
-                printf("%04X: RRC, DEST = R%d\n",  GET_MEM_LOCATION(starting_addr), emulator->inst_operands.dest);
+//                printf("%04X: RRC, DEST = R%d\n",  GET_MEM_LOCATION(starting_addr), emulator->inst_operands.dest);
                 break;
             case SWPB:
                 emulator->opcode = swpb;
-                printf("%04X: SWPB, DEST = R%d\n",  GET_MEM_LOCATION(starting_addr), emulator->inst_operands.dest);
+//                printf("%04X: SWPB, DEST = R%d\n",  GET_MEM_LOCATION(starting_addr), emulator->inst_operands.dest);
                 break;
             case SXT:
                 emulator->opcode = sxt;
-                printf("%04X: SXT, DEST = R%d\n",  GET_MEM_LOCATION(starting_addr), emulator->inst_operands.dest);
+//                printf("%04X: SXT, DEST = R%d\n",  GET_MEM_LOCATION(starting_addr), emulator->inst_operands.dest);
                 break;
             default:
                 break;
         }
     }
     return;
+}
+#define SETPRI 0x08
+#define SVC 0x09
+#define SETCC 0x0A
+#define CLRCC 0x0C
+#define LOW_5_BITS 0x1F
+void parse_cpu_command_block(Emulator *emulator, instruction_data current_instruction, unsigned short starting_address)
+{
+    //instructions different according to value of bits 7-4
+    unsigned short val = (current_instruction.byte[LSB] >> 4 & LOWER_NIBBLE_MASK);
+    switch (val)
+    {
+        case SETPRI:
+            //placeholder
+            break;
+        case SVC:
+            //placeholder
+            break;
+        case SETCC:
+        case SETCC+1: //plus one incase overflow bit is set
+            emulator->opcode = setcc;
+            break;
+        case CLRCC:
+        case CLRCC+1: //plus one incase overflow bit is set
+            emulator->opcode = clrcc;
+            break;
+    }
+    emulator->cpu_ops.byte = current_instruction.byte[LSB] & LOW_5_BITS;
 }
 /*
  * @brief This function parses the move block of instructions
@@ -305,16 +343,16 @@ void parse_reg_init(Emulator *emulator, instruction_data current_instruction, sh
     emulator->opcode = movement_instruction_table[table_index].execution_opcode;
     if(emulator->opcode > movh || emulator->opcode < movl)
     {
-        printf("Invalid opcode for reg_init instruction\n");
+//        printf("Invalid opcode for reg_init instruction\n");
         return;
     }
     else
     {
-        printf("%04X: %s ",  GET_MEM_LOCATION(starting_addr), movement_instruction_table[table_index].instruction_name);
+//        printf("%04X: %s ",  GET_MEM_LOCATION(starting_addr), movement_instruction_table[table_index].instruction_name);
         //extract bytes to be moved from bits 10-3 and destination from bits 2-0
         emulator->move_byte = (current_instruction.word >> 3) & 0xFF;
         emulator->inst_operands.dest = current_instruction.word & EXTRACT_LOW_THREE_BITS;
-        printf("BYTE = %02x, DEST = R%d\n", emulator->move_byte, emulator->inst_operands.dest);
+//        printf("BYTE = %02x, DEST = R%d\n", emulator->move_byte, emulator->inst_operands.dest);
     }
 }
 //todo later A3

@@ -51,69 +51,69 @@ void execute_0(Emulator *emulator) {
 
     switch (emulator->opcode) {
         case add:
-            printf("ADD Executed\n");
+//            printf("ADD Executed\n");
             destination += source;
             break;
         case addc: // add with carry
-            printf("ADDC Executed\n");
-            destination += source + emulator->psw.carry;
+//            printf("ADDC Executed\n");
+            destination += source + emulator->psw.bits.carry;
             break;
         case sub:
-            printf("SUB Executed\n");
+//            printf("SUB Executed\n");
             destination += ~source + 1;
             break;
         case subc: // subtract with carry
-            printf("SUBC Executed\n");
-            destination += ~source + 1 + emulator->psw.carry;
+//            printf("SUBC Executed\n");
+            destination += ~source + 1 + emulator->psw.bits.carry;
             break;
         case dadd: // decimal add
-            printf("DADD Executed\n");
+//            printf("DADD Executed\n");
             bcd_addition(emulator);
             destination = emulator->reg_file[REGISTER][dest].word;
             break;
         case cmp:
-            printf("CMP Executed\n");
+//            printf("CMP Executed\n");
             temp = destination + (~source + 1);
             update_psw(temp, emulator, old_dest, ~source);
             break;
         case xor:
-            printf("XOR Executed\n");
+//            printf("XOR Executed\n");
             destination ^= source;
             break;
         case and:
-            printf("AND Executed\n");
+//            printf("AND Executed\n");
             destination &= source;
             break;
         case or:
-            printf("OR Executed\n");
+//            printf("OR Executed\n");
             destination |= source;
             break;
         case bit: // bit test
-            printf("BIT Executed\n");
+//            printf("BIT Executed\n");
             temp = destination & (1 << source);
             update_psw(temp, emulator, old_dest, source);
             break;
         case bic: // bit clear
-            printf("BIC Executed\n");
+//            printf("BIC Executed\n");
             destination &= ~(1 << source);
             break;
         case bis: // bit set
-            printf("BIS Executed\n");
+//            printf("BIS Executed\n");
             destination |= (1 << source);
             break;
         case mov: // move
-            printf("MOV Executed\n");
+//            printf("MOV Executed\n");
             destination = source;
             break;
         case swap:
-            printf("SWAP Executed\n");
+//            printf("SWAP Executed\n");
             temp_reg = emulator->reg_file[REGISTER][sc];
             emulator->reg_file[REGISTER][sc] = emulator->reg_file[REGISTER][dest];
             emulator->reg_file[REGISTER][dest] = temp_reg;
             break;
         case sra: // shift right arithmetic
-            printf("SRA Executed\n");
-            ((destination & 0x0001) == 1) ? emulator->psw.carry = 1 : 0;
+//            printf("SRA Executed\n");
+            ((destination & 0x0001) == 1) ? emulator->psw.bits.carry = 1 : 0;
             if (wb == WORD) {
                 (destination & WORD_MSb) == WORD_MSb ? temp = WORD_MSb : 0x0000;
                 destination >>= 1;
@@ -125,27 +125,27 @@ void execute_0(Emulator *emulator) {
             }
             break;
         case rrc: // rotate right through carry
-            printf("RRC Executed\n");
+//            printf("RRC Executed\n");
             //store current carry
-            temp = emulator->psw.carry;
+            temp = emulator->psw.bits.carry;
             //update the carry according to our LSB
-            emulator->psw.carry = destination & 0x0001;
+            emulator->psw.bits.carry = destination & 0x0001;
             //shift destination register
             destination = (destination >> 1);
             //shift carry into MSBit
             wb == WORD ? destination |= temp << WORD_SHIFT : (destination |= temp << BYTE_SHIFT);
             break;
         case swpb: // swap bytes
-            printf("SWPB Executed\n");
+//            printf("SWPB Executed\n");
             temp_reg.byte[MSB] = destination >> 8;
             destination = (destination << 8) | temp_reg.byte[MSB];
             break;
         case sxt: // sign extend
-            printf("SXT Executed\n");
+//            printf("SXT Executed\n");
             (destination & BYTE_MSb) == BYTE_MSb ? destination |= 0xFF00 : 0;
             break;
         case ld:
-            printf("LOAD Executed\n");
+//            printf("LOAD Executed\n");
             if(emulator->inst_operands.prpo == 0)
             {
                 //post operation
@@ -156,37 +156,44 @@ void execute_0(Emulator *emulator) {
             }
             break;
         case st:
-            printf("STORE Executed\n");
+//            printf("STORE Executed\n");
             break;
         case str:
-            printf("STORE RELATIVE Executed\n");
+//            printf("STORE RELATIVE Executed\n");
             break;
         case ldr:
-            printf("LOAD RELATIVE Executed\n");
+//            printf("LOAD RELATIVE Executed\n");
             break;
         case movl:
-            printf("MOVL Executed\n");
+//            printf("MOVL Executed\n");
             emulator->reg_file[REGISTER][dest].byte[LSB] = emulator->move_byte;
             break;
         case movlz:
-            printf("MOVLZ Executed\n");
+//            printf("MOVLZ Executed\n");
             emulator->reg_file[REGISTER][dest].byte[LSB] = emulator->move_byte;
             emulator->reg_file[REGISTER][dest].byte[MSB] = 0x00;
             break;
         case movls:
-            printf("MOVLS Executed\n");
+//            printf("MOVLS Executed\n");
             emulator->reg_file[REGISTER][dest].byte[LSB] = emulator->move_byte;
             emulator->reg_file[REGISTER][dest].byte[MSB] = 0xFF;
             break;
         case movh:
-            printf("MOVH Executed\n");
+//            printf("MOVH Executed\n");
             emulator->reg_file[REGISTER][dest].byte[MSB] = emulator->move_byte;
             break;
+        case setcc:
+            emulator->psw.word |= emulator->cpu_ops.byte;
+
+            return;
+        case clrcc:
+            emulator->psw.word &= ~emulator->cpu_ops.byte;
+            return;
         case -1:
-            printf("NOP Executed\n");
+//            printf("NOP Executed\n");
             break;
         default:
-            printf("Invalid Opcode\n");
+//            printf("Invalid Opcode\n");
             break;
     }
     // Update the destination register with the result
@@ -510,19 +517,19 @@ void update_psw(unsigned short result, Emulator *emulator, unsigned short old_de
     if (emulator->inst_operands.word_or_byte == WORD) {
         ms_bit = WORD_MSb;
         shift_size = WORD_SHIFT;
-        emulator->psw.negative = result & ms_bit ? 1 : 0;
+        emulator->psw.bits.negative = result & ms_bit ? 1 : 0;
     } else {
         ms_bit = BYTE_MSb;
         shift_size = BYTE_SHIFT;
-        emulator->psw.negative = result & ms_bit ? 1 : 0;
+        emulator->psw.bits.negative = result & ms_bit ? 1 : 0;
 
     }
-    emulator->psw.zero = result == 0 ? 1 : 0;
+    emulator->psw.bits.zero = result == 0 ? 1 : 0;
     //only add, sub, addc, subc, and rrc set the carry. RRC handles the carry in its case
     if(emulator->opcode < xor)
     {
-        emulator->psw.carry = carry_check[(source & ms_bit) >> shift_size][(old_dest & ms_bit) >> shift_size][(result & ms_bit) >> shift_size];
-        emulator->psw.overflow = overflow_check[(source & ms_bit) >> shift_size][(old_dest & ms_bit) >> shift_size][(result & ms_bit) >> shift_size];
+        emulator->psw.bits.carry = carry_check[(source & ms_bit) >> shift_size][(old_dest & ms_bit) >> shift_size][(result & ms_bit) >> shift_size];
+        emulator->psw.bits.overflow = overflow_check[(source & ms_bit) >> shift_size][(old_dest & ms_bit) >> shift_size][(result & ms_bit) >> shift_size];
     }
     emulator->do_auto_psw_print ?  print_psw(emulator, SINGLE_LINE): printf("") ;
 }
@@ -575,7 +582,7 @@ void bcd_addition(Emulator *emulator) {
     if (result_bcd.nibbles.nib1 > 9) {
         result_bcd.nibbles.nib1 -= RESET_HEX;
         //if dadd.b set the carry flag and don't increment the next nibble, else increment the next nibble
-        wb == WORD ? result_bcd.nibbles.nib2++ : (emulator->psw.carry = 1);
+        wb == WORD ? result_bcd.nibbles.nib2++ : (emulator->psw.bits.carry = 1);
     }
     if (wb == WORD) {
         result_bcd.nibbles.nib2 += dest_bcd.nibbles.nib2 + source_bcd.nibbles.nib2;
@@ -586,19 +593,19 @@ void bcd_addition(Emulator *emulator) {
         result_bcd.nibbles.nib3 += dest_bcd.nibbles.nib3 + source_bcd.nibbles.nib3;
         if (result_bcd.nibbles.nib3 > 9) {
             result_bcd.nibbles.nib3 -= RESET_HEX;
-            emulator->psw.carry = 1;
+            emulator->psw.bits.carry = 1;
         } else {
-            emulator->psw.carry = 0;
+            emulator->psw.bits.carry = 0;
         }
     }
     if((result_bcd.word == 0 && emulator->inst_operands.word_or_byte == WORD)
     || ((result_bcd.word & 0x00FF) == 0 && emulator->inst_operands.word_or_byte == BYTE))
     {
-        emulator->psw.zero = 1;
+        emulator->psw.bits.zero = 1;
     }
     else
     {
-        emulator->psw.zero = 0;
+        emulator->psw.bits.zero = 0;
     }
     //set the result of the bcd addition to the destination register
     emulator->reg_file[REGISTER][dest].word = result_bcd.word;

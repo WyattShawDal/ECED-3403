@@ -43,6 +43,8 @@ typedef enum
     rrc,
     swpb,
     sxt,
+    setcc,
+    clrcc,
     movl,
     movlz,
     movls,
@@ -113,20 +115,36 @@ typedef struct operands{
     unsigned short dec : 1;
     unsigned short prpo : 1;
 }operands;
-
-typedef struct program_status_word
+typedef struct cpu_operands_bits
 {
+    unsigned char carry : 1;
+    unsigned char zero : 1;
+    unsigned char negative : 1;
+    unsigned char sleep : 1;
+    unsigned char overflow : 1;
+}cpu_operands_bits;
+typedef union cpu_operands {
+    unsigned char byte;
+    struct cpu_operands_bits bits;
+}cpu_operands;
+
+typedef struct program_status_word_bits
+{
+    unsigned short carry :1;
+    unsigned short zero :1;
+    unsigned short negative :1;
+    unsigned short sleep :1;
+    unsigned short overflow :1;
+    unsigned short current_prio :3;
+    unsigned short fault :1;
+    unsigned short unused :4;
     //later use
     unsigned short previous_prio :3;
-    unsigned short unused :4;
-    unsigned short fault :1;
-    unsigned short current_prio :3;
-    unsigned short sleep :1;
-    //a2 flags
-    unsigned short overflow :1;
-    unsigned short negative :1;
-    unsigned short zero :1;
-    unsigned short carry :1;
+}program_status_word_bits;
+
+typedef union program_status_word {
+    unsigned short word;
+    struct program_status_word_bits bits;
 }program_status_word;
 
 typedef struct i_control_registers
@@ -146,6 +164,7 @@ typedef struct emulator_data
 {
     short opcode; //opcode of instruction, instructions are 16 bits so this can hold any possible opcode
     short operand_bits; //temp variable for extracting bit values
+    cpu_operands cpu_ops; //rename
     operands inst_operands; //rename
     program_status_word psw; //status word bitfield struct
     instruction_data reg_file[REG_FILE_OPTIONS][REGFILE_SIZE];
@@ -156,6 +175,9 @@ typedef struct emulator_data
     bool is_single_step; //bool to check if the emulator will run in single step mode or continuous
     bool do_auto_psw_print; //DEBUGGING bool to check if the emulator will print the psw after each instruction
     bool is_user_interrupt; //bool to check if the user has interrupted the emulator via a SIGINT
+    /* Lab 4 Stuff */
+    bool hide_menu_prompt; //lab4
+    bool stop_on_clock; //lab4
     unsigned char xCTRL;
     unsigned short instruction_register;
     unsigned char move_byte;
