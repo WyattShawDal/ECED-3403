@@ -174,10 +174,10 @@ void decode_instruction(Emulator *emulator)
         parse_cpu_command_block(emulator, current_instruction, emulator->reg_file[REGISTER][PROG_COUNTER].word);
     }
 //load store to be implemented here (past a2)
-//        else if (current_instruction.byte[MSB] < 0x60 && current_instruction.byte[MSB] >= 0x58 || current_instruction.byte[MSB] <= 0x9F && current_instruction.byte[MSB] >= 0x80)
-//        {
-//            parse_load_store(current_instruction, emulator->reg_file[REGISTER][PROG_COUNTER].word);
-//        }
+    else if (current_instruction.byte[MSB] < 0x60 && current_instruction.byte[MSB] >= 0x58 || current_instruction.byte[MSB] <= 0xFF && current_instruction.byte[MSB] >= 0x80)
+    {
+        parse_load_store(emulator, current_instruction, emulator->reg_file[REGISTER][PROG_COUNTER].word);
+    }
     else if(current_instruction.byte[MSB] <= REG_INIT_UPPER_BOUND && current_instruction.byte[MSB] >= REG_INIT_LOWER_BOUND)
     {
         parse_reg_init(emulator, current_instruction,
@@ -358,15 +358,37 @@ void parse_reg_init(Emulator *emulator, instruction_data current_instruction, sh
 //todo later A3
 void parse_load_store(Emulator *emulator, instruction_data current_instruction, unsigned short starting_addr)
 {
-    emulator->inst_operands.source_const = (current_instruction.word >> 3) & EXTRACT_LOW_THREE_BITS;
-    emulator->inst_operands.dest = (current_instruction.word) & EXTRACT_LOW_THREE_BITS;
-    emulator->inst_operands.word_or_byte = (current_instruction.word >> 6) & BIT0;
-    if(current_instruction.word < 0x60) //indexed addressing
-    {
+    unsigned char temp_off;
 
+    emulator->inst_operands.dest = (current_instruction.word) & EXTRACT_LOW_THREE_BITS;
+    emulator->inst_operands.source_const = (current_instruction.word >> 3) & EXTRACT_LOW_THREE_BITS;
+    emulator->inst_operands.word_or_byte = (current_instruction.word >> 6) & BIT0;
+    if(current_instruction.byte[MSB] < 0x60) //indexed addressing
+    {
+        if(TEST_BIT(current_instruction.word, BIT10)) //direct, indirect addressing
+        {
+            emulator->opcode = st;
+        }
+        else
+        {
+            emulator->opcode = ld;
+        }
+        emulator->inst_operands.inc = TEST_BIT(current_instruction.word, BIT7); //value assigned 1 or 2 in execution
+        emulator->inst_operands.dec = TEST_BIT(current_instruction.word, BIT8); //value assigned 1 or 2 in execution
+        emulator->inst_operands.prpo = TEST_BIT(current_instruction.word, BIT9); //0 for post , 1 for pre
     }
     else //relative addressing
     {
-
+        if(TEST_BIT(current_instruction.word, BIT14)) //indirect addressing
+        {
+            emulator->opcode = str;
+        }
+        else
+        {
+            emulator->opcode = ldr;
+        }
+        temp_off = (current_instruction.word >> 7) & 0x7F; //extract offset (bits 13-7)
+        emulator->offset = TEST_BIT(current_instruction.word, BIT6) ? 0xFFFF : 0x0000; //sign extend
+        emulator->offset = temp_off + emulator->offset;
     }
 }

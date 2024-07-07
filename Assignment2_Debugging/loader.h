@@ -38,7 +38,12 @@ typedef enum
 {
     I_MEMORY = 0,
     D_MEMORY = 1,
-}MEMORY_TYPES;
+    D_READ = 2,
+    D_READ_B = 3,
+    D_WRITE = 4,
+    D_WRITE_B = 5,
+    NO_ACCESS = 6
+}MEMORY_ACCESS_TYPES;
 
 typedef union memory
 {

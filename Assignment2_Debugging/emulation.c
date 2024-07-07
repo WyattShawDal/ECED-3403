@@ -43,8 +43,7 @@ void run_emulator(Emulator *emulator)
         return;
     }
     emulator->has_started = true;
-
-        printf("CLK    PC    INST    FETCH     DECODE    EXECUTE\n");
+    printf("CLK    PC    INST    FETCH     DECODE    EXECUTE        PSW\n");
 
     do
     {
@@ -54,18 +53,20 @@ void run_emulator(Emulator *emulator)
 
             printf("%-5lu %04X   %04X   ", emulator->clock, emulator->reg_file[REGISTER][PROG_COUNTER].word, xm23_memory[I_MEMORY].word[emulator->reg_file[REGISTER][PROG_COUNTER].word >> 1]);
 
-//            emulator->is_single_step ? printf("Start PC: %04x, BRKPT: %04x, CLK: %d\n", emulator->reg_file[REGISTER][PROG_COUNTER].word, emulator->breakpoint, emulator->clock) : printf("");
-
+            if(emulator->xCTRL != I_MEMORY && emulator->xCTRL != NO_ACCESS)
+            {
+                execute_1(emulator); //e1
+                emulator->xCTRL = NO_ACCESS;
+            }
 
             printf("F0: %04X  ", emulator->reg_file[REGISTER][PROG_COUNTER].word);
 
             fetch_instruction(emulator, EVEN); //f0
 
             printf("D0: %04X\n", emulator->instruction_register);
-
+            //TODO modify how we get here, maybe a flag?
             decode_instruction(emulator); //d0
             previously_decoded = emulator->instruction_register;
-            //execute_1(emulator); //e1
 
         }
         else
@@ -142,6 +143,7 @@ void fetch_instruction(Emulator *emulator, int even)
  * @brief This function sets the memory buffer register to the value of the memory at the memory address register
  * @note technically not needed, but better emulates the xm23p
  */
+//todo refactor memory access variables once ld store are working
 void memory_controller(Emulator *emulator)
 {
     if(emulator->xCTRL == I_MEMORY )
@@ -150,7 +152,22 @@ void memory_controller(Emulator *emulator)
     }
     else
     {
-        emulator->d_control.DMBR = xm23_memory[D_MEMORY].word[emulator->d_control.DMAR >> 1];
+        switch (emulator->xCTRL)
+        {
+            //TODO do we need allignment here
+            case D_READ:
+                emulator->d_control.DMBR = xm23_memory[D_MEMORY].word[emulator->d_control.DMAR >> 1];
+                break;
+            case D_READ_B:
+                emulator->d_control.DMBR = xm23_memory[D_MEMORY].byte[emulator->d_control.DMAR];
+                break;
+            case D_WRITE:
+                xm23_memory[D_MEMORY].word[emulator->d_control.DMAR >> 1] = emulator->d_control.DMBR;
+                break;
+            case D_WRITE_B:
+                xm23_memory[D_MEMORY].byte[emulator->d_control.DMAR] = emulator->d_control.DMBR;
+                break;
+        }
     }
 
 }
@@ -162,6 +179,7 @@ void init_emulator(Emulator *emulator)
     //emulator is created via a calloc so we can just initialize values that are not going to be zero here
     emulator->breakpoint = (BYTE_MEMORY_SIZE) - 1;
     emulator->stop_on_clock = true;
+    emulator->xCTRL = NO_ACCESS;
     instruction_data reg_file[REG_FILE_OPTIONS][REGFILE_SIZE] = {
             {
                     { .word = 0 }, { .word = 0 }, { .word = 0 }, { .word = 0 },

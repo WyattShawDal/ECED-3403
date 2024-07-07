@@ -23,6 +23,8 @@
 #define MULTI_LINE 1
 #define SINGLE_LINE (-1)
 
+#define TEST_BIT(val, bit_pos) (((val) & (bit_pos)) == (bit_pos))
+
 typedef enum
 {
     add =1 ,
@@ -45,14 +47,14 @@ typedef enum
     sxt,
     setcc,
     clrcc,
-    movl,
-    movlz,
-    movls,
-    movh,
     ld,
     st,
     ldr,
     str,
+    movl,
+    movlz,
+    movls,
+    movh,
 
 }OPCODES;
 
@@ -72,6 +74,14 @@ typedef enum
 {
     WORD_MSb = 0x8000,
     BYTE_MSb = 0x80,
+    BIT15 = 0x8000,
+    BIT14 = 0x4000,
+    BIT13 = 0x2000,
+    BIT12 = 0x1000,
+    BIT11 = 0x800,
+    BIT10 = 0x400,
+    BIT9 = 0x200,
+    BIT8 = 0x100,
     BIT7 = 0x80,
     BIT6 = 0x40,
     BIT5 = 0x20,
@@ -111,8 +121,8 @@ typedef struct operands{
     unsigned short source_const : 3;
     unsigned short register_or_constant : 1;
     unsigned short word_or_byte : 1;
-    unsigned short inc : 1;
-    unsigned short dec : 1;
+    unsigned short inc : 2;
+    unsigned short dec : 2;
     unsigned short prpo : 1;
 }operands;
 typedef struct cpu_operands_bits
@@ -178,7 +188,9 @@ typedef struct emulator_data
     /* Lab 4 Stuff */
     bool hide_menu_prompt; //lab4
     bool stop_on_clock; //lab4
-    unsigned char xCTRL;
+    /*              */
+    short offset;
+    MEMORY_ACCESS_TYPES xCTRL;
     unsigned short instruction_register;
     unsigned char move_byte;
     unsigned long int clock;
@@ -215,6 +227,13 @@ void fetch_instruction(Emulator *emulator, int even);
 void memory_controller(Emulator *emulator);
 void run_emulator(Emulator *emulator);
 void bcd_addition(Emulator *emulator);
+short calc_index_adjustment(Emulator *emulator);
+
+void execute_arithmetic(Emulator *emulator);
+void execute_chg_reg(Emulator *emulator);
+void execute_load_store(Emulator *emulator);
+void execute_reg_manip(Emulator *emulator);
+void execute_mov_swap(Emulator *emulator);
 
 
 
