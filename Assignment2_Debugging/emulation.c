@@ -21,16 +21,15 @@ void int_handler(int signum)
     stop_loop = 1;
 }
 
-/*
- * @brief This function implements the simulation of the emnulator, it provides an
- * update to clock cycles and handles the calling of functions according to pipeline
- * stages
- *
- */
 
 #define IS_EVEN(x) (x % 2 == 0)
 #define EVEN 1
 #define ODD 0
+/*
+ * @brief This function implements the simulation of the emulator, it provides an
+ * update to clock cycles and handles the calling of functions according to pipeline
+ * stages
+ */
 
 void run_emulator(Emulator *emulator)
 {
@@ -63,8 +62,8 @@ void run_emulator(Emulator *emulator)
 
             fetch_instruction(emulator, EVEN); //f0
 
-            printf("D0: %04X\n", emulator->instruction_register);
-            //TODO modify how we get here, maybe a flag?
+            printf("D0: %04X   ", emulator->instruction_register);
+
             decode_instruction(emulator); //d0
             previously_decoded = emulator->instruction_register;
 
@@ -154,7 +153,6 @@ void memory_controller(Emulator *emulator)
     {
         switch (emulator->xCTRL)
         {
-            //TODO do we need allignment here
             case D_READ:
                 emulator->d_control.DMBR = xm23_memory[D_MEMORY].word[emulator->d_control.DMAR >> 1];
                 break;

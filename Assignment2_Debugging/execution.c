@@ -15,7 +15,10 @@
 unsigned char carry_check[2][2][2] = {0, 0, 1, 0, 1, 0, 1, 1};
 unsigned char overflow_check[2][2][2] = {0, 1, 0, 0, 0, 0, 1, 0};
 
-
+/*
+ * @brief This function handles the E1 stage of pipeline execution, which occurs from a data memory read or write
+ *
+ */
 void execute_1(Emulator *emulator)
 {
     memory_controller(emulator);
@@ -24,29 +27,16 @@ void execute_1(Emulator *emulator)
         emulator->reg_file[REGISTER][emulator->inst_operands.dest].word = emulator->d_control.DMBR;
     }
 }
-short calc_index_adjustment(Emulator *emulator)
-{
-    short index_adjustment;
-    if(emulator->inst_operands.inc != 0)
-    {
-        index_adjustment = (emulator->inst_operands.word_or_byte == 0) ? 2 : 1;
-    }
-    else if(emulator->inst_operands.dec != 0)
-    {
-        index_adjustment = (emulator->inst_operands.word_or_byte == 0) ? -2 : -1;
-    }
-    else
-    {
-        index_adjustment = 0;
-    }
-    return index_adjustment;
-}
+
+/*
+ * @brief This function calls an execution function based on a given opcodes position within a group
+ */
 void execute_0(Emulator *emulator) {
     switch (emulator->opcode) {
         case add ... bis:
             execute_arithmetic(emulator);
             break;
-        case mov ... swap: // move
+        case mov ... swap:
             execute_mov_swap(emulator);
         case sra ... sxt:
             execute_reg_manip(emulator);
@@ -68,7 +58,9 @@ void execute_0(Emulator *emulator) {
             break;
     }
 }
-
+/*
+ * @brief This function implements the execution of the mov and swap instructions
+ */
 void execute_mov_swap(Emulator *emulator) {
     unsigned char dest = emulator->inst_operands.dest;
     unsigned char sc = emulator->inst_operands.source_const;
@@ -85,14 +77,17 @@ void execute_mov_swap(Emulator *emulator) {
             emulator->reg_file[REGISTER][sc] = emulator->reg_file[REGISTER][dest];
             emulator->reg_file[REGISTER][dest] = temp_reg;
             break;
-
     }
     //update reg file
     emulator->reg_file[REGISTER][sc].word = source;
     emulator->reg_file[REGISTER][dest].word = destination;
 
 }
-
+/*
+ * @brief This function implements the execution of the register manipulation instructions
+ * Including SRA, RRC, SWPB, and SXT
+ *
+ */
 void execute_reg_manip(Emulator *emulator) {
     instruction_data temp_reg;
     unsigned short temp;
@@ -139,7 +134,29 @@ void execute_reg_manip(Emulator *emulator) {
         emulator->reg_file[REGISTER][dest].byte[LSB] = destination;
     }
 }
-
+/*
+ * @brief This function calculates the index adjustment for the load/store instructions it serves as a helper function
+ */
+short calc_index_adjustment(Emulator *emulator)
+{
+    short index_adjustment;
+    if(emulator->inst_operands.inc != 0)
+    {
+        index_adjustment = (emulator->inst_operands.word_or_byte == 0) ? 2 : 1;
+    }
+    else if(emulator->inst_operands.dec != 0)
+    {
+        index_adjustment = (emulator->inst_operands.word_or_byte == 0) ? -2 : -1;
+    }
+    else
+    {
+        index_adjustment = 0;
+    }
+    return index_adjustment;
+}
+/*
+ * @brief This function executes the load and store instructions
+ */
 void execute_load_store(Emulator *emulator) {
 
     unsigned char sc = emulator->inst_operands.source_const;
@@ -152,46 +169,47 @@ void execute_load_store(Emulator *emulator) {
     switch(emulator->opcode)
     {
         case ld:
-                if ((emulator->inst_operands.prpo + emulator->inst_operands.inc + emulator->inst_operands.dec) == 0) {
-                    emulator->d_control.DMAR = source; //EA <-- Source, DMAR <-- EA
-                } else if (emulator->inst_operands.prpo == 0) //post
-                {
-                    emulator->d_control.DMAR = source;
-                    source += index_adjustment;
-                } else //pre
-                {
-                    source += index_adjustment;
-                    emulator->d_control.DMAR = source;
-                }
-                emulator->xCTRL = D_READ + wb;
-                break;
-            case st:
-                //CASE UTILIZES FALLTHROUGH INTO STR
-                if ((emulator->inst_operands.prpo + emulator->inst_operands.inc + emulator->inst_operands.dec) == 0) {
-                    emulator->d_control.DMAR = destination;
-                } else if (emulator->inst_operands.prpo == 0) //post
-                {
-                    emulator->d_control.DMAR = destination;
-                    destination += index_adjustment;
-                } else //pre
-                {
-                    destination += index_adjustment;
-                    emulator->d_control.DMAR = destination;
-                }
-                //NOTE FALLTHROUGH OCCURS HERE INTENTIONALLY
-            case str:
-                //CONTROL CAN ENTER HERE WITH ST
-                if (emulator->opcode != st) {
-                    emulator->d_control.DMAR = destination + emulator->offset;
-                }
-                //THIS EXECUTES WITH AN ST OR STR
-                emulator->d_control.DMBR = source;
-                emulator->xCTRL = D_WRITE + wb;
-                break;
-            case ldr:
-                emulator->d_control.DMAR = source + emulator->offset;
-                emulator->xCTRL = D_READ + wb;
-        break;
+            if ((emulator->inst_operands.prpo + emulator->inst_operands.inc + emulator->inst_operands.dec) == 0) {
+                emulator->d_control.DMAR = source; //EA <-- Source, DMAR <-- EA
+            } else if (emulator->inst_operands.prpo == 0) //post
+            {
+                emulator->d_control.DMAR = source;
+                source += index_adjustment;
+            } else //pre
+            {
+                source += index_adjustment;
+                emulator->d_control.DMAR = source;
+            }
+            emulator->xCTRL = D_READ + wb;
+            break;
+        case ldr:
+            emulator->d_control.DMAR = source + emulator->offset;
+            emulator->xCTRL = D_READ + wb;
+            break;
+        case st:
+            //CASE UTILIZES FALLTHROUGH INTO STR
+            if ((emulator->inst_operands.prpo + emulator->inst_operands.inc + emulator->inst_operands.dec) == 0) {
+                emulator->d_control.DMAR = destination;
+            } else if (emulator->inst_operands.prpo == 0) //post
+            {
+                emulator->d_control.DMAR = destination;
+                destination += index_adjustment;
+            } else //pre
+            {
+                destination += index_adjustment;
+                emulator->d_control.DMAR = destination;
+            }
+            //NOTE FALLTHROUGH OCCURS HERE INTENTIONALLY
+        case str:
+            //CONTROL CAN ENTER HERE WITH ST
+            if (emulator->opcode != st) {
+                emulator->d_control.DMAR = destination + emulator->offset;
+            }
+            //THIS EXECUTES WITH AN ST OR STR
+            //data to store is either a word or a byte
+            emulator->d_control.DMBR = (wb == WORD) ? source : (source & 0x00FF);
+            emulator->xCTRL = D_WRITE + wb;
+            break;
     }
     //update source and dest in case of pre/post operation
     if (wb == WORD) {
@@ -203,7 +221,10 @@ void execute_load_store(Emulator *emulator) {
     }
 
 }
-
+/*
+ * @brief This function executes the change register instructions
+ * such as movl, movlz, movls, and movh, these instructions are used to change the value of a register
+ */
 void execute_chg_reg(Emulator *emulator) {
     unsigned char dest = emulator->inst_operands.dest;
     switch (emulator->opcode) {
@@ -224,7 +245,11 @@ void execute_chg_reg(Emulator *emulator) {
     }
 
 }
-
+/*
+ * @brief This function executes the arithmetic and logical instructions
+ * such as add, addc, sub, subc, dadd, cmp, xor, and, or, bit, bic, and bis
+ * These instructions all modify the PSW in one way or another
+ */
 void execute_arithmetic(Emulator *emulator) {
     unsigned short temp;
     unsigned short old_dest;
@@ -258,7 +283,6 @@ void execute_arithmetic(Emulator *emulator) {
         case sub:
             destination += ~source + 1;
             update_psw(destination, emulator, old_dest, ~source);
-
             break;
         case subc: // subtract with carry
             destination += ~source + 1 + emulator->psw.bits.carry;
@@ -299,8 +323,6 @@ void execute_arithmetic(Emulator *emulator) {
         default:
             break;
     }
-    //update registers
-    //todo source doesn't change i don't think so should be fine to remove source from here
     if (wb == WORD) {
         emulator->reg_file[rc][sc].word = source;
         emulator->reg_file[REGISTER][dest].word = destination;
@@ -310,514 +332,7 @@ void execute_arithmetic(Emulator *emulator) {
     }
 }
 
-/*
- * @brief This function executes the instruction based on the current opcode
- * in the emulator
- */
-#ifdef refactor_v1
-void execute_0(Emulator *emulator) {
-    instruction_data temp_reg;
-    unsigned short temp;
-    unsigned short old_dest;
-    unsigned short destination;
-    unsigned short source;
-    bool skip_psw_update = false;
 
-    /* local variables copies of operands are made to improve readability */
-    unsigned char dest = emulator->inst_operands.dest;
-    unsigned char wb = emulator->inst_operands.word_or_byte;
-    unsigned char rc = emulator->inst_operands.register_or_constant;
-    unsigned char sc = emulator->inst_operands.source_const;
-
-    short index_adjustment;
-    //todo refactor this function to not do this anymore, or at least, only doing it for the arithmetic group
-    if (wb == WORD) {
-        //destination before any operations
-        old_dest = emulator->reg_file[REGISTER][dest].word;
-        destination = emulator->reg_file[REGISTER][dest].word;
-        source = emulator->reg_file[rc][sc].word;
-    } else {
-        //destination before any operations
-        old_dest = emulator->reg_file[REGISTER][dest].byte[LSB];
-        destination = emulator->reg_file[REGISTER][dest].byte[LSB];
-        source = emulator->reg_file[rc][sc].byte[LSB];
-    }
-
-    switch (emulator->opcode) {
-        case add:
-            destination += source;
-            break;
-        case addc: // add with carry
-            destination += source + emulator->psw.bits.carry;
-            break;
-        case sub:
-            destination += ~source + 1;
-            break;
-        case subc: // subtract with carry
-            destination += ~source + 1 + emulator->psw.bits.carry;
-            break;
-        case dadd: // decimal add
-            bcd_addition(emulator);
-            destination = emulator->reg_file[REGISTER][dest].word;
-            break;
-        case cmp:
-            temp = destination + (~source + 1);
-            update_psw(temp, emulator, old_dest, ~source);
-            break;
-        case xor:
-            destination ^= source;
-            break;
-        case and:
-            destination &= source;
-            break;
-        case or:
-            destination |= source;
-            break;
-        case bit: // bit test
-            temp = destination & (1 << source);
-            update_psw(temp, emulator, old_dest, source);
-            break;
-        case bic: // bit clear
-            destination &= ~(1 << source);
-            break;
-        case bis: // bit set
-            destination |= (1 << source);
-            break;
-        case mov: // move
-            destination = source;
-            break;
-        case swap:
-            temp_reg = emulator->reg_file[REGISTER][sc];
-            emulator->reg_file[REGISTER][sc] = emulator->reg_file[REGISTER][dest];
-            emulator->reg_file[REGISTER][dest] = temp_reg;
-            break;
-        case sra: // shift right arithmetic
-            ((destination & 0x0001) == 1) ? emulator->psw.bits.carry = 1 : 0;
-            if (wb == WORD) {
-                (destination & WORD_MSb) == WORD_MSb ? temp = WORD_MSb : 0x0000;
-                destination >>= 1;
-                destination |= temp;
-            } else {
-                destination & BYTE_MSb ? temp = BYTE_MSb : 0;
-                destination >>= 1;
-                destination |= temp;
-            }
-            break;
-        case rrc: // rotate right through carry
-            //store current carry
-            temp = emulator->psw.bits.carry;
-            //update the carry according to our LSB
-            emulator->psw.bits.carry = destination & 0x0001;
-            //shift destination register
-            destination = (destination >> 1);
-            //shift carry into MSBit
-            wb == WORD ? destination |= temp << WORD_SHIFT : (destination |= temp << BYTE_SHIFT);
-            break;
-        case swpb: // swap bytes
-            temp_reg.byte[MSB] = destination >> 8;
-            destination = (destination << 8) | temp_reg.byte[MSB];
-            break;
-        case sxt: // sign extend
-            (destination & BYTE_MSb) == BYTE_MSb ? destination |= 0xFF00 : 0;
-            break;
-        case ld:
-            index_adjustment = calc_index_adjustment(emulator);
-            source = emulator->reg_file[REGISTER][sc].word; //ld/st only use register
-            rc = REGISTER;
-            if((emulator->inst_operands.prpo + emulator->inst_operands.inc + emulator->inst_operands.dec) == 0)
-            {
-                emulator->d_control.DMAR = source; //EA <-- Source, DMAR <-- EA
-            }
-            else if (emulator->inst_operands.prpo == 0) //post
-            {
-                emulator->d_control.DMAR = source;
-                source += index_adjustment;
-            }
-            else //pre
-            {
-                source += index_adjustment;
-                emulator->d_control.DMAR = source;
-            }
-            emulator->xCTRL = D_READ + wb;
-            skip_psw_update = true;
-            break;
-        case st:
-            index_adjustment = calc_index_adjustment(emulator);
-            source = emulator->reg_file[REGISTER][sc].word; //ld/st only use register
-            rc = REGISTER;
-            //CASE UTILIZES FALLTHROUGH INTO STR
-            if((emulator->inst_operands.prpo + emulator->inst_operands.inc + emulator->inst_operands.dec) == 0)
-            {
-                emulator->d_control.DMAR = destination;
-            }
-            else if (emulator->inst_operands.prpo == 0) //post
-            {
-                emulator->d_control.DMAR = destination;
-                destination += index_adjustment;
-            }
-            else //pre
-            {
-                destination += index_adjustment;
-                emulator->d_control.DMAR = destination;
-            }
-            //NOTE FALLTHROUGH OCCURS HERE INTENTIONALLY
-        case str:
-            //CONTROL CAN ENTER HERE WITH ST
-            if(emulator->opcode != st)
-            {
-                emulator->d_control.DMAR = destination + emulator->offset;
-            }
-            //THIS EXECUTES WITH AN ST OR STR
-            emulator->d_control.DMBR = source;
-            emulator->xCTRL = D_WRITE + wb;
-            skip_psw_update = true;
-            break;
-        case ldr:
-            emulator->d_control.DMAR = source + emulator->offset;
-            emulator->xCTRL = D_READ + wb;
-            skip_psw_update = true;
-            break;
-        case movl:
-            emulator->reg_file[REGISTER][dest].byte[LSB] = emulator->move_byte;
-            skip_psw_update = true;
-            break;
-        case movlz:
-            emulator->reg_file[REGISTER][dest].byte[LSB] = emulator->move_byte;
-            emulator->reg_file[REGISTER][dest].byte[MSB] = 0x00;
-            skip_psw_update = true;
-            break;
-        case movls:
-            emulator->reg_file[REGISTER][dest].byte[LSB] = emulator->move_byte;
-            emulator->reg_file[REGISTER][dest].byte[MSB] = 0xFF;
-            skip_psw_update = true;
-            break;
-        case movh:
-            emulator->reg_file[REGISTER][dest].byte[MSB] = emulator->move_byte;
-            skip_psw_update = true;
-            break;
-/* setcc and clrcc early return to prevent another checking of the PSW. This prevents the PSW from being improperly reset
- * after these instructions have ran*/
-        case setcc:
-            emulator->psw.word |= emulator->cpu_ops.byte;
-
-            skip_psw_update = true;
-            break;
-        case clrcc:
-            emulator->psw.word &= ~emulator->cpu_ops.byte;
-            skip_psw_update = true;
-            break;
-        case -1:
-            break;
-        default:
-//            printf("Invalid Opcode\n");
-            break;
-    }
-    // Update the destination register with the result
-    if(emulator->opcode < movl)
-    {
-        if (wb == WORD) {
-            emulator->reg_file[rc][sc].word = source;
-            emulator->reg_file[REGISTER][dest].word = destination;
-        } else {
-            emulator->reg_file[rc][sc].byte[LSB] = source;
-            emulator->reg_file[REGISTER][dest].byte[LSB] = destination;
-        }
-    }
-
-    // Update the PSW for arithmetic and logical operations
-    if (!skip_psw_update) {
-        //need to pass in the one's complement of source for subtractions
-        if(emulator->opcode == sub || emulator->opcode == subc)
-        {
-            update_psw(destination, emulator, old_dest, ~source);
-
-        }
-        //cmp and bit use the temporary register, and are handled in their individual cases
-        else if(emulator->opcode != bit && emulator->opcode != cmp)
-        {
-            //all other instructions before move take in the same data
-            update_psw(destination, emulator, old_dest, source);
-
-        }
-    }
-#ifdef working
-    instruction_data temp_reg;
-    unsigned short temp;
-    unsigned short old_dest;
-    unsigned short destination;
-    unsigned short source;
-
-    /* local variables copies of operands are made to improve readability */
-    unsigned char dest = emulator->inst_operands.dest;
-    unsigned char wb = emulator->inst_operands.word_or_byte;
-    unsigned char rc = emulator->inst_operands.register_or_constant;
-    unsigned char sc = emulator->inst_operands.source_const;
-
-    if (wb == WORD) {
-        old_dest = emulator->reg_file[REGISTER][dest].word;
-        destination = emulator->reg_file[REGISTER][dest].word;
-        source =  emulator->reg_file[rc][sc].word;
-    } else {
-        old_dest = emulator->reg_file[REGISTER][dest].byte[LSB];
-        destination = emulator->reg_file[REGISTER][dest].byte[LSB];
-        source = emulator->reg_file[rc][sc].byte[LSB];
-    }
-    switch (emulator->opcode) {
-        case add:
-            printf("ADD Executed\n");
-            if (wb == WORD) {
-                emulator->reg_file[REGISTER][dest].word += emulator->reg_file[rc][sc].word;
-
-                update_psw(emulator->reg_file[REGISTER][dest].word, emulator,
-                           old_dest, emulator->reg_file[rc][sc].word);
-            } else {
-                emulator->reg_file[REGISTER][dest].byte[LSB] += emulator->reg_file[rc][sc].byte[LSB];
-
-                update_psw(emulator->reg_file[REGISTER][dest].byte[LSB],
-                           emulator, old_dest, emulator->reg_file[rc][sc].byte[LSB]);
-            }
-
-            break;
-        case addc: //add with carry
-            printf("ADDC Executed\n");
-            if (wb == WORD) {
-                emulator->reg_file[REGISTER][dest].word +=
-                        (emulator->reg_file[rc][sc].word + emulator->psw.carry);
-                update_psw(emulator->reg_file[REGISTER][dest].word, emulator,
-                           old_dest, emulator->reg_file[rc][sc].byte[LSB]);
-            } else {
-                emulator->reg_file[REGISTER][dest].byte[LSB] +=
-                        (emulator->reg_file[rc][sc].byte[LSB] + emulator->psw.carry);
-                update_psw(emulator->reg_file[REGISTER][dest].byte[LSB],
-                           emulator, old_dest, emulator->reg_file[rc][sc].byte[LSB]);
-            }
-            break;
-        case sub:
-            printf("SUB Executed\n");
-            if (wb == WORD) {
-                emulator->reg_file[REGISTER][dest].word +=
-                        ~emulator->reg_file[rc][sc].word + 1;
-                update_psw(emulator->reg_file[REGISTER][dest].word, emulator,
-                           old_dest, ~emulator->reg_file[rc][sc].word);
-            } else {
-                emulator->reg_file[REGISTER][dest].byte[LSB] +=
-                        ~emulator->reg_file[rc][sc].byte[LSB] + 1;
-                update_psw(emulator->reg_file[REGISTER][dest].byte[LSB],
-                           emulator, old_dest, ~emulator->reg_file[rc][sc].byte[LSB]);
-            }
-            break;
-        case subc: //subtract with carry
-            printf("SUBC Executed\n");
-            if (wb == WORD) {
-                emulator->reg_file[REGISTER][dest].word +=
-                        emulator->reg_file[rc][sc].word + emulator->psw.carry;
-                update_psw(emulator->reg_file[REGISTER][dest].word, emulator,
-                           old_dest, ~emulator->reg_file[rc][sc].word);
-            } else {
-                emulator->reg_file[REGISTER][dest].byte[LSB] +=
-                        emulator->reg_file[rc][sc].byte[LSB] + emulator->psw.carry;
-                update_psw(emulator->reg_file[REGISTER][dest].byte[LSB],
-                           emulator, old_dest, ~emulator->reg_file[rc][sc].byte[LSB]);
-            }
-            break;
-        case dadd: //decimal add
-            printf("DADD Executed\n");
-
-            bcd_addition(emulator);
-            break;
-        case cmp:
-            printf("CMP Executed\n");
-            if (wb == WORD) {
-                temp = emulator->reg_file[REGISTER][dest].word;
-                temp += (~emulator->reg_file[rc][sc].word + 1);
-                update_psw(temp, emulator, old_dest, ~emulator->reg_file[rc][sc].word);
-            } else {
-                temp = emulator->reg_file[REGISTER][dest].byte[LSB];
-                temp += (~emulator->reg_file[rc][sc].byte[LSB] + 1);
-                update_psw(temp, emulator, old_dest, ~emulator->reg_file[rc][sc].byte[LSB]);
-            }
-            break;
-        case xor:
-            printf("XOR Executed\n");
-
-            if (wb == WORD) {
-                emulator->reg_file[REGISTER][dest].word ^=
-                        emulator->reg_file[rc][sc].word;
-                update_psw(emulator->reg_file[REGISTER][dest].word, emulator,
-                           old_dest, emulator->reg_file[rc][sc].word);
-            } else {
-                emulator->reg_file[REGISTER][dest].byte[LSB] ^=
-                        emulator->reg_file[rc][sc].byte[LSB];
-                update_psw(emulator->reg_file[REGISTER][dest].byte[LSB],
-                           emulator, old_dest, emulator->reg_file[rc][sc].byte[LSB]);
-            }
-            break;
-        case and:
-            printf("AND Executed\n");
-
-            if (wb == WORD) {
-                emulator->reg_file[REGISTER][dest].word &=
-                        emulator->reg_file[rc][sc].word;
-                update_psw(emulator->reg_file[REGISTER][dest].word, emulator,
-                           old_dest, emulator->reg_file[rc][sc].word);
-            } else {
-                emulator->reg_file[REGISTER][dest].byte[LSB] &=
-                        emulator->reg_file[rc][sc].byte[LSB];
-                update_psw(emulator->reg_file[REGISTER][dest].byte[LSB],
-                           emulator, old_dest, emulator->reg_file[rc][sc].byte[LSB]);
-            }
-            break;
-        case or:
-            printf("OR Executed\n");
-
-            if (wb == WORD) {
-                emulator->reg_file[REGISTER][dest].word |=
-                        emulator->reg_file[rc][sc].word;
-                update_psw(emulator->reg_file[REGISTER][dest].word, emulator,
-                           old_dest, emulator->reg_file[rc][sc].word);
-            } else {
-                emulator->reg_file[REGISTER][dest].byte[LSB] |=
-                        emulator->reg_file[rc][sc].byte[LSB];
-                update_psw(emulator->reg_file[REGISTER][dest].byte[LSB],
-                           emulator, old_dest, emulator->reg_file[rc][sc].byte[LSB]);
-            }
-            break;
-        case bit: //bit test
-            printf("BIT Executed\n");
-
-            if (wb == WORD) {
-                temp = emulator->reg_file[REGISTER][dest].word & (1 << emulator->reg_file[rc][sc].word);
-                update_psw(temp, emulator, old_dest, emulator->reg_file[rc][sc].word);
-            } else {
-                temp = emulator->reg_file[REGISTER][dest].byte[LSB] & (1 << emulator->reg_file[rc][sc].byte[LSB]);
-                update_psw(temp, emulator, old_dest, emulator->reg_file[rc][sc].byte[LSB]);
-            }
-
-            break;
-        case bic: //bit clear
-            printf("BIC Executed\n");
-
-            if (wb == WORD) {
-                emulator->reg_file[REGISTER][dest].word &= ~(1 << emulator->reg_file[rc][sc].word);
-                update_psw(emulator->reg_file[REGISTER][dest].word, emulator,
-                           old_dest, emulator->reg_file[rc][sc].word);
-            } else {
-                emulator->reg_file[REGISTER][dest].byte[LSB] &= ~(1 << emulator->reg_file[rc][sc].byte[LSB]);
-                update_psw(emulator->reg_file[REGISTER][dest].byte[LSB],
-                           emulator, old_dest, emulator->reg_file[rc][sc].byte[LSB]);
-            }
-            break;
-        case bis: //bit set
-            printf("BIS Executed\n");
-            if (wb == WORD) {
-                emulator->reg_file[REGISTER][dest].word |= (1 << emulator->reg_file[rc][sc].word);
-                update_psw(emulator->reg_file[REGISTER][dest].word, emulator,
-                           old_dest, emulator->reg_file[rc][sc].word);
-            } else {
-                emulator->reg_file[REGISTER][dest].byte[LSB] |= (1 << emulator->reg_file[rc][sc].byte[LSB]);
-                update_psw(emulator->reg_file[REGISTER][dest].byte[LSB],
-                           emulator, old_dest, emulator->reg_file[rc][sc].byte[LSB]);
-            }
-            break;
-        case mov: //move
-            printf("MOV Executed\n");
-
-            if (wb == WORD) {
-                emulator->reg_file[REGISTER][dest].word = emulator->reg_file[REGISTER][sc].word;
-            } else {
-                emulator->reg_file[REGISTER][dest].byte[LSB] = emulator->reg_file[REGISTER][sc].byte[LSB];
-            }
-            break;
-        case swap:
-            printf("SWAP Executed\n");
-
-            temp_reg = emulator->reg_file[REGISTER][sc];
-            emulator->reg_file[REGISTER][sc] = emulator->reg_file[REGISTER][dest];
-            emulator->reg_file[REGISTER][dest] = temp_reg;
-            break;
-        case sra: //shift right arithmetic
-            printf("SRA Executed\n");
-
-            ((emulator->reg_file[REGISTER][dest].word & 0x0001) == 1) ? emulator->psw.carry = 1 : 0;
-            if (wb == WORD) {
-                /* save the value of the MSbit into temp */
-                (emulator->reg_file[REGISTER][dest].word & WORD_MSb) == WORD_MSb ? temp = WORD_MSb : 0x0000;
-                /* perform the right shift one bit */
-                emulator->reg_file[REGISTER][dest].word >>= 1;
-                /* restore the MSbit */
-                emulator->reg_file[REGISTER][dest].word |= temp;
-            } else {
-
-                /* save the value of the MSbit into temp */
-                emulator->reg_file[REGISTER][dest].byte[LSB] & BYTE_MSb ? temp = BYTE_MSb : 0;
-                /* perform the right shift one bit */
-                emulator->reg_file[REGISTER][dest].byte[LSB] >>= 1;
-                /* restore the MSbit */
-                emulator->reg_file[REGISTER][dest].byte[LSB] |= temp;
-            }
-            break;
-        case rrc: //rotate right through carry
-            printf("RRC Executed\n");
-
-            //set a variable equal to the carry
-            temp = emulator->psw.carry;
-
-            //if the lsbit of the number is 1 set the carry
-            ((emulator->reg_file[REGISTER][dest].word & 0x0001) == 1) ? emulator->psw.carry = 1 : 0;
-
-            //rotate the number right one
-
-            //set the msbit equal to variable
-            if (wb == WORD) {
-                //todo define 7 and 15
-                //does this work? maybe, shift right one and then or with the LSbit shifted to the MSbit
-                // msbit moves to lsbit which covers carry from the roation, and the extra or is from carry from diff op?
-                emulator->reg_file[REGISTER][dest].word =
-                        (emulator->reg_file[REGISTER][dest].word >> 1) | (temp << WORD_SHIFT);
-            } else {
-                emulator->reg_file[REGISTER][dest].byte[LSB] =
-                        (emulator->reg_file[REGISTER][dest].byte[LSB] >> 1) | (temp << BYTE_SHIFT);
-            }
-            break;
-        case swpb: //swap bytes
-            printf("SWPB Executed\n");
-            temp_reg.byte[MSB] = emulator->reg_file[REGISTER][dest].byte[MSB];
-            emulator->reg_file[REGISTER][dest].byte[MSB] = emulator->reg_file[REGISTER][dest].byte[LSB];
-            emulator->reg_file[REGISTER][dest].byte[LSB] = temp_reg.byte[MSB];
-            break;
-        case sxt: //sign extend
-            printf("SXT Executed\n");
-            emulator->reg_file[REGISTER][dest].byte[LSB] & BYTE_MSb ? emulator->reg_file[REGISTER][dest].byte[MSB] |= 0xFF: 0;
-            break;
-        case movl:
-            printf("MOVL Executed\n");
-            emulator->reg_file[REGISTER][dest].byte[LSB] = emulator->move_byte;
-            break;
-        case movlz:
-            printf("MOVLZ Executed\n");
-            emulator->reg_file[REGISTER][dest].byte[LSB] = emulator->move_byte;
-            emulator->reg_file[REGISTER][dest].byte[MSB] = 0x00;
-            break;
-        case movls:
-            printf("MOVLS Executed\n");
-            emulator->reg_file[REGISTER][dest].byte[LSB] = emulator->move_byte;
-            emulator->reg_file[REGISTER][dest].byte[MSB] = 0xFF;
-            break;
-        case movh:
-            printf("MOVH Executed\n");
-            emulator->reg_file[REGISTER][dest].byte[MSB] = emulator->move_byte;
-            break;
-        case -1:
-            printf("NOP Executed\n");
-            break;
-        default:
-            printf("Invalid Opcode\n");
-            break;
-
-    }
-#endif
-}
-#endif
 /*
  *
  * @brief This function updates the program status word based on the result of

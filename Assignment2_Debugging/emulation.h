@@ -212,9 +212,9 @@ void set_breakpoint(Emulator *emulator);
 void decode_instruction(Emulator *emulator);
 void parse_arithmetic_block(Emulator *emulator, instruction_data current_instruction, short starting_addr);
 void parse_reg_manip_block(Emulator *emulator, instruction_data current_instruction, short starting_addr);
-void parse_reg_init(Emulator *emulator, instruction_data current_instruction, short starting_addr);
+void parse_reg_init(Emulator *emulator, instruction_data current_instruction);
 //later use (not a2)
-void parse_load_store(Emulator *emulator, instruction_data current_instruction, unsigned short starting_addr);
+void parse_load_store(Emulator *emulator, instruction_data current_instruction);
 
 
 
