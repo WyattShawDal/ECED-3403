@@ -20,8 +20,6 @@ void int_handler(int signum)
 {
     stop_loop = 1;
 }
-
-
 #define IS_EVEN(x) (x % 2 == 0)
 #define EVEN 1
 #define ODD 0
@@ -62,9 +60,16 @@ void run_emulator(Emulator *emulator)
 
             fetch_instruction(emulator, EVEN); //f0
 
-            printf("D0: %04X   ", emulator->instruction_register);
-
-            decode_instruction(emulator); //d0
+            if(emulator->hazard_control.d_bubble)
+            {
+                printf("D0: BUB.   \n");
+                emulator->hazard_control.d_bubble = false;
+            }
+            else
+            {
+                decode_instruction(emulator); //d0
+                printf("D0: %04X   \n", emulator->instruction_register);
+            }
             previously_decoded = emulator->instruction_register;
 
         }
@@ -74,10 +79,19 @@ void run_emulator(Emulator *emulator)
 
             printf("%-5lu               F1: %04X             ",emulator->clock, emulator->i_control.IMBR);
 
+            if(emulator->hazard_control.e_bubble)
+            {
+                emulator->hazard_control.e_bubble = false;
+                printf("E0: BUB.    VNZC: %1d%1d%1d%1d\n", emulator->psw.bits.overflow, emulator->psw.bits.negative, emulator->psw.bits.zero, emulator->psw.bits.carry);
 
-            execute_0(emulator); //e0
+            }
+            else
+            {
+                execute_0(emulator); //e0
+                printf("E0: %04X    VNZC: %1d%1d%1d%1d\n", previously_decoded, emulator->psw.bits.overflow, emulator->psw.bits.negative, emulator->psw.bits.zero, emulator->psw.bits.carry);
 
-            printf("E0: %04X    VNZC: %1d%1d%1d%1d\n", previously_decoded, emulator->psw.bits.overflow, emulator->psw.bits.negative, emulator->psw.bits.zero, emulator->psw.bits.carry);
+            }
+
             //break after instruction has been executed
             if(emulator->reg_file[REGISTER][PROG_COUNTER].word == emulator->breakpoint)
             {
@@ -93,7 +107,7 @@ void run_emulator(Emulator *emulator)
         {
             menu(emulator);
         }
-        //pause every pc increment
+            //pause every pc increment
         else if ((emulator->is_single_step == true && IS_EVEN(emulator->clock)) && emulator->stop_on_clock == false)
         {
             menu(emulator);
@@ -140,9 +154,8 @@ void fetch_instruction(Emulator *emulator, int even)
 
 /*
  * @brief This function sets the memory buffer register to the value of the memory at the memory address register
- * @note technically not needed, but better emulates the xm23p
+ *
  */
-//todo refactor memory access variables once ld store are working
 void memory_controller(Emulator *emulator)
 {
     if(emulator->xCTRL == I_MEMORY )
@@ -165,6 +178,9 @@ void memory_controller(Emulator *emulator)
             case D_WRITE_B:
                 xm23_memory[D_MEMORY].byte[emulator->d_control.DMAR] = emulator->d_control.DMBR;
                 break;
+            case NO_ACCESS:
+            case D_MEMORY:
+                return;
         }
     }
 
@@ -178,6 +194,8 @@ void init_emulator(Emulator *emulator)
     emulator->breakpoint = (BYTE_MEMORY_SIZE) - 1;
     emulator->stop_on_clock = true;
     emulator->xCTRL = NO_ACCESS;
+    emulator->hazard_control.d_bubble = true;
+    emulator->hazard_control.e_bubble = true;
     instruction_data reg_file[REG_FILE_OPTIONS][REGFILE_SIZE] = {
             {
                     { .word = 0 }, { .word = 0 }, { .word = 0 }, { .word = 0 },
@@ -210,7 +228,7 @@ void menu(Emulator *emulator) {
         print_menu_options();
     }
     do
-    //enter loop for entering commands, this allows us to do multiple commands from one menu() call
+        //enter loop for entering commands, this allows us to do multiple commands from one menu() call
     {
         if(!emulator->hide_menu_prompt) printf("Enter Option (? for list of commands): ");
         if (scanf(" %c", &command) != 1)
@@ -243,26 +261,26 @@ void menu(Emulator *emulator) {
                     printf("No file loaded, cannot run emulator\n");
                     break;
                 }
-                //if it's single_step and the emulator has started we just want to move to the next clock cycle
+                    //if it's single_step and the emulator has started we just want to move to the next clock cycle
                 else if(emulator->has_started && emulator->is_single_step)
                 {
                     return;
                 }
-                //if the loop was interrupted and is now resuming print a message reflecting that
-                //reset user_interrupt variable
+                    //if the loop was interrupted and is now resuming print a message reflecting that
+                    //reset user_interrupt variable
                 else if (emulator->has_started && emulator->is_user_interrupt)
                 {
                     printf("Resuming emulation\n");
                     emulator->is_user_interrupt = false;
                     return;
                 }
-                //if the emulator has started and isn't in single step mode, we don't want to start it again
+                    //if the emulator has started and isn't in single step mode, we don't want to start it again
                 else if(emulator->has_started)
                 {
                     printf("Emulator is already running\n");
                     return;
                 }
-                //if the emulator hasn't started, we can start it
+                    //if the emulator hasn't started, we can start it
                 else
                 {
                     printf("Running Emulator\n");

@@ -143,7 +143,6 @@ void set_breakpoint(Emulator *emulator)
     }
 }
 
-void parse_cpu_command_block(Emulator *emulator, instruction_data current_instruction);
 
 /*
  * @brief This function decodes the instructions in the emulator
@@ -156,11 +155,15 @@ void decode_instruction(Emulator *emulator)
         printf("Emulator is NULL, exiting program, FATAL ERROR\n");
         exit(-1);
     }
+
     instruction_data current_instruction;
     //shift starting address right for word addressing since word memory is half the size of byte memory
     current_instruction.word = emulator->instruction_register;
-
-    if(current_instruction.byte[MSB] < ARITHMETIC_UPPER_BOUND && current_instruction.byte[MSB] >= ARITHMETIC_LOWER_BOUND)
+    if (current_instruction.byte[MSB] < ARITHMETIC_LOWER_BOUND)
+    {
+        parse_branch_block(emulator, current_instruction);
+    }
+    else if(current_instruction.byte[MSB] < ARITHMETIC_UPPER_BOUND && current_instruction.byte[MSB] >= ARITHMETIC_LOWER_BOUND)
     {
         //opcode is only the MSB for this group
         parse_arithmetic_block(emulator, current_instruction, emulator->reg_file[REGISTER][PROG_COUNTER].word);
@@ -192,8 +195,40 @@ void decode_instruction(Emulator *emulator)
         }
     }
 }
+#define BUBBLE_OFFSET (2)
 
+void parse_branch_block(Emulator *emulator, instruction_data data) {
+    emulator->offset = 0;
+    //if the upper three bits are more than zero it is not branch with link, since all other branch instructions
+    //have a one in that bit position
+    if((data.byte[MSB] >> 5) > 0)
+    {
+//        emulator->offset = (data.word & 0x3FF) << 1; //extract 10 bits
+        emulator->offset = EXTRACT_BITS(10, 0, data.word) << 1;
+        if(TEST_BIT(data.word, BIT9))
+        {
+            emulator->offset |= 0xF800; //sign extend
+            emulator->offset -= BUBBLE_OFFSET;
 
+        }
+        else
+        {
+            emulator->offset -= BUBBLE_OFFSET;
+        }
+        emulator->opcode = EXTRACT_BITS(3, 0, data.byte[MSB] >> 2); //extract 3 bits
+    }
+
+    else
+    {
+        //save pc to link reg
+        emulator->reg_file[REGISTER][LINK_REG].word = emulator->reg_file[REGISTER][PROG_COUNTER].word - BUBBLE_OFFSET;
+        emulator->offset = EXTRACT_BITS(13,0, data.word) << 1; //extract 13 bits
+        emulator->opcode = bl;
+        emulator->offset |= (TEST_BIT(data.word , BIT12)) ? 0xC000 : 0x0000; //sign extend
+        emulator->offset -= BUBBLE_OFFSET;
+
+    }
+}
 
 
 #define LOWER_NIBBLE_MASK 0x0F
@@ -220,8 +255,8 @@ void parse_arithmetic_block(Emulator *emulator, instruction_data current_instruc
     //[RC]
     emulator->inst_operands.register_or_constant = emulator->operand_bits >> 7,
     emulator->inst_operands.word_or_byte = ((emulator->operand_bits >> 6) & BIT0),
-    emulator->inst_operands.source_const  = (emulator->operand_bits >> 3) & EXTRACT_LOW_THREE_BITS,
-    emulator->inst_operands.dest = emulator->operand_bits & EXTRACT_LOW_THREE_BITS;
+    emulator->inst_operands.source_const  = EXTRACT_BITS(3,0, (emulator->operand_bits >> 3)),
+            emulator->inst_operands.dest = EXTRACT_BITS(3,0, (emulator->operand_bits));
 }
 #define MOV_SWAP 0x0C
 #define BYTE_MANIP 0x0D
@@ -242,7 +277,7 @@ void parse_reg_manip_block(Emulator *emulator, instruction_data current_instruct
     short val = (current_instruction.byte[MSB] & LOWER_NIBBLE_MASK);
     if (val == MOV_SWAP)
     {
-        emulator->inst_operands.source_const = (emulator->operand_bits >> 3) & EXTRACT_LOW_THREE_BITS, emulator->inst_operands.dest = emulator->operand_bits & EXTRACT_LOW_THREE_BITS;
+        emulator->inst_operands.source_const = EXTRACT_BITS(3,0, (emulator->operand_bits >> 3)), emulator->inst_operands.dest = EXTRACT_BITS(3,0, (emulator->operand_bits));
         if((current_instruction.byte[LSB] & BIT7) == BIT7)
         {
             emulator->opcode = swap;
@@ -255,9 +290,9 @@ void parse_reg_manip_block(Emulator *emulator, instruction_data current_instruct
     else if(val == BYTE_MANIP)
     {
         /* Check bits 5-3 to identify function */
-        unsigned char comparison_value = (emulator->operand_bits >> 3) & EXTRACT_LOW_THREE_BITS;
+        unsigned char comparison_value = EXTRACT_BITS(3,0, (emulator->operand_bits >> 3));
         emulator->inst_operands.word_or_byte = (current_instruction.byte[LSB] >> 6) & BIT0;
-        emulator->inst_operands.dest = emulator->operand_bits & EXTRACT_LOW_THREE_BITS;
+        emulator->inst_operands.dest = EXTRACT_BITS(3,0, (emulator->operand_bits));
         switch(comparison_value)
         {
             case SRA:

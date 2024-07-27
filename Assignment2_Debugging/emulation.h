@@ -27,7 +27,18 @@
 
 typedef enum
 {
-    add =1 ,
+    //todo if things break
+    bl = -1,
+    beq_bz = 0,
+    bne_bnz,
+    bc_bhs,
+    bnc_blo,
+    bn,
+    bge,
+    blt,
+    bra,
+    //todo this should be set to 1
+    add,
     addc,
     sub,
     subc,
@@ -167,28 +178,33 @@ typedef struct d_control_registers
     unsigned short DMAR; //program counter value
     unsigned short DMBR; //instruction from fetch
 }DataControlRegisters;
+typedef struct hazard_control {
+    bool d_bubble;
+    bool e_bubble;
+}HazardControl;
+
+#define EXTRACT_BITS(num_bits, start, val) ((((1 << num_bits) - 1) << start) & val)
+
 
 #define REG_FILE_OPTIONS 2 //register or constant
 #define REGFILE_SIZE 8
 typedef struct emulator_data
 {
-    short opcode; //opcode of instruction, instructions are 16 bits so this can hold any possible opcode
+    OPCODES opcode; //opcode of instruction, instructions are 16 bits so this can hold any possible opcode
     short operand_bits; //temp variable for extracting bit values
-    cpu_operands cpu_ops; //rename
-    operands inst_operands; //rename
+    cpu_operands cpu_ops;
+    operands inst_operands;
     program_status_word psw; //status word bitfield struct
     instruction_data reg_file[REG_FILE_OPTIONS][REGFILE_SIZE];
     InstControlRegisters i_control; //registers to emulate xm23p behaviour
     DataControlRegisters d_control;//registers to emulate xm23p behaviour
+    HazardControl hazard_control;
     bool is_memset; //bool to check if a file has been loaded
     bool has_started; //bool to check if the emulator has started
     bool is_single_step; //bool to check if the emulator will run in single step mode or continuous
-    bool do_auto_psw_print; //DEBUGGING bool to check if the emulator will print the psw after each instruction
     bool is_user_interrupt; //bool to check if the user has interrupted the emulator via a SIGINT
-    /* Lab 4 Stuff */
-    bool hide_menu_prompt; //lab4
-    bool stop_on_clock; //lab4
-    /*              */
+    bool hide_menu_prompt;
+    bool stop_on_clock;
     short offset;
     MEMORY_ACCESS_TYPES xCTRL;
     unsigned short instruction_register;
@@ -199,10 +215,9 @@ typedef struct emulator_data
 }Emulator;
 void menu(Emulator *emulator);
 void init_emulator(Emulator *emulator);
-
-
 void print_psw(Emulator *emulator, int style);
 void print_menu_options();
+void execute_branch(Emulator *emulator);
 
 //decoding
 void print_registers(Emulator *emulator);
@@ -216,6 +231,9 @@ void parse_reg_init(Emulator *emulator, instruction_data current_instruction);
 //later use (not a2)
 void parse_load_store(Emulator *emulator, instruction_data current_instruction);
 
+void parse_cpu_command_block(Emulator *emulator, instruction_data current_instruction);
+
+void parse_branch_block(Emulator *emulator, instruction_data data);
 
 
 //executions
