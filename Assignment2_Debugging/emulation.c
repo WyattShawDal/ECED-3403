@@ -34,71 +34,27 @@ void run_emulator(Emulator *emulator)
     //allows us to handle SIGINT (CTRL-C gracefully and stop the while loop) without exiting the process
     unsigned short previously_decoded;
     signal(SIGINT, int_handler);
+    //guard to prevent repeat starting of the emulator
     if(emulator->has_started)
     {
         printf("Emulator is already running\n");
         return;
     }
+    //set the emulator to started
     emulator->has_started = true;
-    printf("CLK    PC    INST    FETCH     DECODE    EXECUTE        PSW\n");
-
+    //print the header for the pipeline
+    printf("CLK    PC    INST    FETCH     DECODE    EXECUTE        PSW         CEX\n");
     do
     {
-        //this if else, combo implements the pipeline
+        //if the clock is even, we do the even cycle
         if(IS_EVEN(emulator->clock))
         {
-
-            printf("%-5lu %04X   %04X   ", emulator->clock, emulator->reg_file[REGISTER][PROG_COUNTER].word, xm23_memory[I_MEMORY].word[emulator->reg_file[REGISTER][PROG_COUNTER].word >> 1]);
-
-            if(emulator->xCTRL != I_MEMORY && emulator->xCTRL != NO_ACCESS)
-            {
-                execute_1(emulator); //e1
-                emulator->xCTRL = NO_ACCESS;
-            }
-
-            printf("F0: %04X  ", emulator->reg_file[REGISTER][PROG_COUNTER].word);
-
-            fetch_instruction(emulator, EVEN); //f0
-
-            if(emulator->hazard_control.d_bubble)
-            {
-                printf("D0: BUB.   \n");
-                emulator->hazard_control.d_bubble = false;
-            }
-            else
-            {
-                decode_instruction(emulator); //d0
-                printf("D0: %04X   \n", emulator->instruction_register);
-            }
-            previously_decoded = emulator->instruction_register;
-
+            previously_decoded = do_even_cycle(emulator);
         }
+        //if the clock is odd, we do the odd cycle
         else
         {
-            fetch_instruction(emulator, ODD); //f1
-
-            printf("%-5lu               F1: %04X             ",emulator->clock, emulator->i_control.IMBR);
-
-            if(emulator->hazard_control.e_bubble)
-            {
-                emulator->hazard_control.e_bubble = false;
-                printf("E0: BUB.    VNZC: %1d%1d%1d%1d\n", emulator->psw.bits.overflow, emulator->psw.bits.negative, emulator->psw.bits.zero, emulator->psw.bits.carry);
-
-            }
-            else
-            {
-                execute_0(emulator); //e0
-                printf("E0: %04X    VNZC: %1d%1d%1d%1d\n", previously_decoded, emulator->psw.bits.overflow, emulator->psw.bits.negative, emulator->psw.bits.zero, emulator->psw.bits.carry);
-
-            }
-
-            //break after instruction has been executed
-            if(emulator->reg_file[REGISTER][PROG_COUNTER].word == emulator->breakpoint)
-            {
-                emulator->has_started =false;
-                emulator->hide_menu_prompt = false;
-                menu(emulator);
-            }
+            do_odd_cycle(emulator, previously_decoded);
         }
         //after pipeline stages increment clock
         emulator->clock++;
@@ -107,12 +63,12 @@ void run_emulator(Emulator *emulator)
         {
             menu(emulator);
         }
-            //pause every pc increment
+        //pause every pc increment
         else if ((emulator->is_single_step == true && IS_EVEN(emulator->clock)) && emulator->stop_on_clock == false)
         {
             menu(emulator);
         }
-
+        //pause on user interrupt
         else if(stop_loop)
         {
             //resetting the signal handler
@@ -125,6 +81,118 @@ void run_emulator(Emulator *emulator)
         }
     } while (emulator->has_started);
     printf("EMULATION ENDED WITH PC: %d\nCLOCK: %d", emulator->reg_file[REGISTER][PROG_COUNTER].word, emulator->clock);
+}
+
+
+
+unsigned short do_even_cycle(Emulator *emulator)
+{
+    printf("%-5lu %04X   %04X   ", emulator->clock, emulator->reg_file[REGISTER][PROG_COUNTER].word, xm23_memory[I_MEMORY].word[emulator->reg_file[REGISTER][PROG_COUNTER].word >> 1]);
+
+    //executes for load stores D-MEM reads and D-MEM writes
+    if(emulator->xCTRL != I_MEMORY && emulator->xCTRL != NO_ACCESS)
+    {
+        execute_1(emulator); //e1
+        emulator->xCTRL = NO_ACCESS;
+    }
+    char cond_exec_char = emulator->cond_exec.status == CEX_TRUE ? 'T' : (emulator->cond_exec.status == CEX_FALSE ? 'F' : 'X');
+    printf("F0: %04X  ", emulator->reg_file[REGISTER][PROG_COUNTER].word);
+
+    fetch_instruction(emulator, EVEN); //f0
+    if(emulator->cond_exec.status == CEX_TRUE)
+    {
+        //run as normal for TRUE count
+        if(emulator->cond_exec.true_count)
+        {
+            decode_instruction(emulator); //d0
+            printf("D0: %04X                           CEX:%c%d%d\n", emulator->instruction_register,cond_exec_char, emulator->cond_exec.true_count, emulator->cond_exec.false_count);
+            emulator->cond_exec.true_count--;
+        }
+        //
+        else if(emulator->cond_exec.false_count)
+        {
+            printf("D0: BUB.                           CEX:%c%d%d\n", cond_exec_char, emulator->cond_exec.true_count, emulator->cond_exec.false_count);
+            emulator->hazard_control.d_bubble = true;
+            emulator->hazard_control.e_bubble = true;
+            emulator->cond_exec.false_count--;
+        }
+        else
+        {
+            decode_instruction(emulator); //d0
+            printf("D0: %04X                           CEX:%c%d%d\n", emulator->instruction_register,cond_exec_char, emulator->cond_exec.true_count, emulator->cond_exec.false_count);
+            emulator->hazard_control.d_bubble = false;
+            emulator->hazard_control.e_bubble = false;
+            emulator->cond_exec.status = CEX_DISABLED;
+
+        }
+    }
+    else if(emulator->cond_exec.status == CEX_FALSE)
+    {
+        //skip for TRUE count
+        if(emulator->cond_exec.true_count)
+        {
+            printf("D0: BUB.                           CEX:%c%d%d\n", cond_exec_char, emulator->cond_exec.true_count, emulator->cond_exec.false_count);
+            emulator->hazard_control.d_bubble = true;
+            emulator->hazard_control.e_bubble = true;
+            emulator->cond_exec.true_count--;
+        }
+        //run as normal for FALSE count
+        else if(emulator->cond_exec.false_count)
+        {
+            decode_instruction(emulator); //d0
+            printf("D0: %04X                           CEX:%c%d%d\n", emulator->instruction_register,cond_exec_char, emulator->cond_exec.true_count, emulator->cond_exec.false_count);
+            emulator->cond_exec.false_count--;
+        }
+        else
+        {
+            decode_instruction(emulator); //d0
+            printf("D0: %04X                           CEX:%c%d%d\n", emulator->instruction_register,cond_exec_char, emulator->cond_exec.true_count, emulator->cond_exec.false_count);
+            emulator->hazard_control.d_bubble = false;
+            emulator->hazard_control.e_bubble = false;
+            emulator->cond_exec.status = CEX_DISABLED;
+
+        }
+    }
+    else if(emulator->hazard_control.d_bubble)
+    {
+        printf("D0: BUB.                           CEX:%c%d%d\n", cond_exec_char, emulator->cond_exec.true_count, emulator->cond_exec.false_count);
+        emulator->hazard_control.d_bubble = false;
+    }
+    else
+    {
+        decode_instruction(emulator); //d0
+        printf("D0: %04X                           CEX:%c%d%d\n", emulator->instruction_register,cond_exec_char, emulator->cond_exec.true_count, emulator->cond_exec.false_count);
+    }
+    return emulator->instruction_register;
+}
+
+void do_odd_cycle(Emulator *emulator, unsigned short previously_decoded)
+{
+    fetch_instruction(emulator, ODD); //f1
+
+    printf("%-5lu               F1: %04X             ",emulator->clock, emulator->i_control.IMBR);
+    char cond_exec_char = emulator->cond_exec.status == CEX_TRUE ? 'T' : (emulator->cond_exec.status == CEX_FALSE ? 'F' : 'X');
+    if(emulator->hazard_control.e_bubble)
+    {
+        emulator->hazard_control.e_bubble = false;
+        printf("E0: BUB.    VNZC: %1d%1d%1d%1d  CEX:%c%d%d\n", emulator->psw.bits.overflow, emulator->psw.bits.negative, emulator->psw.bits.zero, emulator->psw.bits.carry,
+               cond_exec_char, emulator->cond_exec.true_count, emulator->cond_exec.false_count);
+    }
+    else
+    {
+        execute_0(emulator); //e0
+        printf("E0: %04X    VNZC: %1d%1d%1d%1d  CEX:%c%d%d\n", previously_decoded, emulator->psw.bits.overflow, emulator->psw.bits.negative, emulator->psw.bits.zero, emulator->psw.bits.carry,
+               cond_exec_char, emulator->cond_exec.true_count, emulator->cond_exec.false_count);
+
+    }
+
+    //break after instruction has been executed
+    if(emulator->reg_file[REGISTER][PROG_COUNTER].word == emulator->breakpoint)
+    {
+        emulator->has_started =false;
+        emulator->hide_menu_prompt = false;
+        menu(emulator);
+    }
 }
 
 /*
@@ -196,6 +264,7 @@ void init_emulator(Emulator *emulator)
     emulator->xCTRL = NO_ACCESS;
     emulator->hazard_control.d_bubble = true;
     emulator->hazard_control.e_bubble = true;
+    emulator->cond_exec.status = CEX_DISABLED;
     instruction_data reg_file[REG_FILE_OPTIONS][REGFILE_SIZE] = {
             {
                     { .word = 0 }, { .word = 0 }, { .word = 0 }, { .word = 0 },

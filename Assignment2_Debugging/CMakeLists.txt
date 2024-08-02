@@ -3,7 +3,7 @@ project(XM23p_ECED3403 C)
 
 set(CMAKE_C_STANDARD 11)
 
-add_executable(Assignment2_Debugging main.c
+add_executable(XM23p main.c
         loader.c
         decoding.c
         execution.c

@@ -1,7 +1,10 @@
-//
-// Created by wyatt on 2024-05-29.
-//
-
+/*
+ * File Name: emulation.h
+ * Date Created: May 18, 2024
+ * Written By: Wyatt Shaw
+ * Module Info: The module declares the functions used for the emulator, including functions needed for decoding
+ * emulation and execution
+ */
 #ifndef ASSIGNMENT1_DECODER_H
 #define ASSIGNMENT1_DECODER_H
 #include "loader.h"
@@ -17,17 +20,22 @@
 #define ARITHMETIC_UPPER_BOUND 0x4C
 #define REG_MANIP_LOWER_BOUND 0x4C
 #define REG_MANIP_UPPER_BOUND 0x4D
+#define CEX_LOWER_BOUND 0x50
+#define CEX_UPPER_BOUND 0x53
 #define REG_INIT_LOWER_BOUND 0x60
 #define REG_INIT_UPPER_BOUND 0x7F
 
 #define MULTI_LINE 1
 #define SINGLE_LINE (-1)
 
+#define EXTRACT_BITS(num_bits, start, val) ((((1 << num_bits) - 1) << start) & val)
+#define REG_FILE_OPTIONS 2 //register or constant
+#define REGFILE_SIZE 8
+
 #define TEST_BIT(val, bit_pos) (((val) & (bit_pos)) == (bit_pos))
 
 typedef enum
 {
-    //todo if things break
     bl = -1,
     beq_bz = 0,
     bne_bnz,
@@ -37,7 +45,6 @@ typedef enum
     bge,
     blt,
     bra,
-    //todo this should be set to 1
     add,
     addc,
     sub,
@@ -58,6 +65,7 @@ typedef enum
     sxt,
     setcc,
     clrcc,
+    cex,
     ld,
     st,
     ldr,
@@ -136,6 +144,10 @@ typedef struct operands{
     unsigned short dec : 2;
     unsigned short prpo : 1;
 }operands;
+/*
+ * The cpu_operands_bits struct is used for the setcc clrcc instructions as a means to quickly
+ * identify the bits to be changed
+ */
 typedef struct cpu_operands_bits
 {
     unsigned char carry : 1;
@@ -144,6 +156,10 @@ typedef struct cpu_operands_bits
     unsigned char sleep : 1;
     unsigned char overflow : 1;
 }cpu_operands_bits;
+/*
+ * The cpu_operands union is used to quickly access the bits of the cpu_operands_bits struct
+ * it allows the operation |= &=~ to be used to change the bits quickly in execution
+ */
 typedef union cpu_operands {
     unsigned char byte;
     struct cpu_operands_bits bits;
@@ -183,41 +199,74 @@ typedef struct hazard_control {
     bool e_bubble;
 }HazardControl;
 
-#define EXTRACT_BITS(num_bits, start, val) ((((1 << num_bits) - 1) << start) & val)
+typedef enum {
+    CEX_FALSE = 0,
+    CEX_TRUE = 1,
+    CEX_DISABLED = 2,
+}cex_status;
 
+typedef enum
+{
+    eq, //equal
+    ne, //not equal
+    cs, //carry set
+    cc, //carry clear
+    mi, //minus
+    pl, //plus
+    vs, //overflow
+    vc, //no overflow
+    hi, //unsigned higher
+    ls, //unsigned lower or same
+    ge, //signed greater or equal
+    lt, //signed less than
+    gt, //signed greater than
+    le, //signed less or equal
+    tr, //always true
+    fl, //always false
+}cex_codes;
+typedef struct cex_control
+{
+    cex_codes current_code; //current condition code eq, ne, etc.
+    cex_status status; //true, false, disabled
+    unsigned short true_count; //if true, number of instructions to execute before skipping false count
+    unsigned short false_count; //if false, number of instructions to skip before executing
+}CexControl;
 
-#define REG_FILE_OPTIONS 2 //register or constant
-#define REGFILE_SIZE 8
 typedef struct emulator_data
 {
     OPCODES opcode; //opcode of instruction, instructions are 16 bits so this can hold any possible opcode
     short operand_bits; //temp variable for extracting bit values
-    cpu_operands cpu_ops;
+    cpu_operands cpu_ops; //used when decoding cpu status commands
     operands inst_operands;
     program_status_word psw; //status word bitfield struct
-    instruction_data reg_file[REG_FILE_OPTIONS][REGFILE_SIZE];
+    instruction_data reg_file[REG_FILE_OPTIONS][REGFILE_SIZE]; //contains the xm23p's registers Link, Prog Counter, GBR, etc.
     InstControlRegisters i_control; //registers to emulate xm23p behaviour
     DataControlRegisters d_control;//registers to emulate xm23p behaviour
-    HazardControl hazard_control;
+    HazardControl hazard_control; //contains boolean values for hazard control like bubbling
+    CexControl cond_exec; //contains conditional execution control values
     bool is_memset; //bool to check if a file has been loaded
     bool has_started; //bool to check if the emulator has started
     bool is_single_step; //bool to check if the emulator will run in single step mode or continuous
     bool is_user_interrupt; //bool to check if the user has interrupted the emulator via a SIGINT
-    bool hide_menu_prompt;
-    bool stop_on_clock;
-    short offset;
-    MEMORY_ACCESS_TYPES xCTRL;
+    bool hide_menu_prompt; //bool to toggle menu prompt visibility, useful for clearly viewing pipeline
+    bool stop_on_clock; //bool to toggle if emulator should step via clock tick or a full cycle
+    short offset; //offset used in branching instructions
+    MEMORY_ACCESS_TYPES xCTRL; //memory access type
     unsigned short instruction_register;
-    unsigned char move_byte;
-    unsigned long int clock;
-    unsigned int starting_address;
-    unsigned int breakpoint;
+    unsigned char move_byte; //used in mov and swap instructions
+    unsigned long int clock; //clock counter
+    unsigned int starting_address; //starting address of the emulator
+    unsigned int breakpoint; //address of instruction to break at
 }Emulator;
+
 void menu(Emulator *emulator);
 void init_emulator(Emulator *emulator);
 void print_psw(Emulator *emulator, int style);
 void print_menu_options();
 void execute_branch(Emulator *emulator);
+unsigned short do_even_cycle(Emulator *emulator);
+void do_odd_cycle(Emulator *emulator, unsigned short previously_decoded);
+
 
 //decoding
 void print_registers(Emulator *emulator);
@@ -228,21 +277,17 @@ void decode_instruction(Emulator *emulator);
 void parse_arithmetic_block(Emulator *emulator, instruction_data current_instruction, short starting_addr);
 void parse_reg_manip_block(Emulator *emulator, instruction_data current_instruction, short starting_addr);
 void parse_reg_init(Emulator *emulator, instruction_data current_instruction);
-//later use (not a2)
 void parse_load_store(Emulator *emulator, instruction_data current_instruction);
-
 void parse_cpu_command_block(Emulator *emulator, instruction_data current_instruction);
-
 void parse_branch_block(Emulator *emulator, instruction_data data);
-
-
+void parse_cex_instruction(Emulator *emulator, instruction_data data);
 //executions
-void
-update_psw(unsigned short result, Emulator *emulator, unsigned short old_dest, unsigned short source);
+void update_psw(unsigned short result, Emulator *emulator, unsigned short old_dest, unsigned short source);
 void execute_1(Emulator *emulator);
 void execute_0(Emulator *emulator);
 void fetch_instruction(Emulator *emulator, int even);
 void memory_controller(Emulator *emulator);
+void do_cex(Emulator *emulator, cex_status status);
 void run_emulator(Emulator *emulator);
 void bcd_addition(Emulator *emulator);
 short calc_index_adjustment(Emulator *emulator);
@@ -252,6 +297,7 @@ void execute_chg_reg(Emulator *emulator);
 void execute_load_store(Emulator *emulator);
 void execute_reg_manip(Emulator *emulator);
 void execute_mov_swap(Emulator *emulator);
+void execute_cex(Emulator *emulator);
 
 
 

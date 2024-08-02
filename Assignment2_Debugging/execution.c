@@ -10,9 +10,10 @@
 
 #define WORD 0
 #define BYTE 1
-
+//[source][dest][result]
 unsigned char carry_check[2][2][2] = {0, 0, 1, 0, 1, 0, 1, 1};
 unsigned char overflow_check[2][2][2] = {0, 1, 0, 0, 0, 0, 1, 0};
+
 
 
 /*
@@ -51,6 +52,10 @@ void execute_0(Emulator *emulator) {
             break;
         case movl ... movh:
             execute_chg_reg(emulator);
+            break;
+        case cex:
+            execute_cex(emulator);
+            break;
         case setcc:
             emulator->psw.word |= emulator->cpu_ops.byte;
             break;
@@ -65,7 +70,70 @@ void execute_0(Emulator *emulator) {
     {
         emulator->hazard_control.e_bubble = true;
         emulator->hazard_control.d_bubble = true;
+        emulator->cond_exec.status = CEX_DISABLED;
+        emulator->cond_exec.false_count = 0;
+        emulator->cond_exec.true_count = 0;
     }
+}
+
+void execute_cex(Emulator *emulator)
+{
+    //todo check if this is the correct instruction
+    switch(emulator->cond_exec.current_code)
+    {
+        case eq:
+            emulator->cond_exec.status = (emulator->psw.bits.zero == 1);
+            break;
+        case ne:
+            emulator->cond_exec.status = (emulator->psw.bits.zero == 0);
+            break;
+        case cs:
+            emulator->cond_exec.status = (emulator->psw.bits.carry == 1);
+            break;
+        case cc:
+            emulator->cond_exec.status = (emulator->psw.bits.carry == 0);
+            break;
+        case mi:
+            emulator->cond_exec.status = (emulator->psw.bits.negative == 1);
+            break;
+        case pl:
+            emulator->cond_exec.status = (emulator->psw.bits.negative == 0);
+            break;
+        case vs:
+            emulator->cond_exec.status = (emulator->psw.bits.overflow == 1);
+            break;
+        case vc:
+            emulator->cond_exec.status = (emulator->psw.bits.overflow == 0);
+            break;
+        case hi:
+            emulator->cond_exec.status = (emulator->psw.bits.carry == 1 && emulator->psw.bits.zero == 0);
+            break;
+        case ls:
+            emulator->cond_exec.status = (emulator->psw.bits.carry == 0 || emulator->psw.bits.zero == 1);
+            break;
+        case ge:
+            emulator->cond_exec.status = (emulator->psw.bits.negative == emulator->psw.bits.overflow);
+            break;
+        case lt:
+            emulator->cond_exec.status = (emulator->psw.bits.negative != emulator->psw.bits.overflow);
+            break;
+        case gt:
+            emulator->cond_exec.status = (emulator->psw.bits.zero == 0 && (emulator->psw.bits.negative == emulator->psw.bits.overflow));
+            break;
+        case le:
+            emulator->cond_exec.status = (emulator->psw.bits.zero == 1 || (emulator->psw.bits.negative != emulator->psw.bits.overflow));
+            break;
+        case tr:
+            emulator->cond_exec.status = CEX_TRUE;
+            break;
+        case fl:
+            emulator->cond_exec.status = CEX_FALSE;
+            break;
+        default:
+            emulator->cond_exec.status = CEX_DISABLED;
+            break;
+    }
+
 }
 
 void execute_branch(Emulator *emulator) {

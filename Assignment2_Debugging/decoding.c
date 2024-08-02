@@ -144,6 +144,7 @@ void set_breakpoint(Emulator *emulator)
 }
 
 
+
 /*
  * @brief This function decodes the instructions in the emulator
  * @param emulator the emulator to decode instructions for
@@ -176,6 +177,10 @@ void decode_instruction(Emulator *emulator)
     {
         parse_cpu_command_block(emulator, current_instruction);
     }
+    else if(current_instruction.byte[MSB] <= CEX_UPPER_BOUND && current_instruction.byte[MSB] >= CEX_LOWER_BOUND)
+    {
+        parse_cex_instruction(emulator, current_instruction);
+    }
 //load store to be implemented here (past a2)
     else if (current_instruction.byte[MSB] < 0x60 && current_instruction.byte[MSB] >= 0x58 || current_instruction.byte[MSB] <= 0xFF && current_instruction.byte[MSB] >= 0x80)
     {
@@ -195,6 +200,15 @@ void decode_instruction(Emulator *emulator)
         }
     }
 }
+
+void parse_cex_instruction(Emulator *emulator, instruction_data data)
+{
+    emulator->opcode = cex; //set opcode to cex for e0 stage
+    emulator->cond_exec.current_code = EXTRACT_BITS(4, 0, data.word >> 6); //extract 4 bits for the cex code from bits 9-6
+    emulator->cond_exec.true_count = EXTRACT_BITS(3, 0, data.word >> 3); //extract the true count from bits 5-3
+    emulator->cond_exec.false_count = EXTRACT_BITS(3, 0, data.word); //extract the false count from bits 2-0
+}
+
 #define BUBBLE_OFFSET (2)
 
 void parse_branch_block(Emulator *emulator, instruction_data data) {

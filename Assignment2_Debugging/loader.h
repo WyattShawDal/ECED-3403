@@ -21,7 +21,7 @@
 #define PREAMBLE 8 //8 bytes of preamble for each record
 #define CONVERT_FROM_HEX 16
 #define MEMORY_LINE_LENGTH 16
-#define MAX_RECORD_LEN (70+1)
+#define MAX_RECORD_LEN (70+2)
 #define VALID_CHECKSUM 255
 #define BYTE_MEMORY_SIZE 1<<16
 #define WORD_MEMORY_SIZE 1<<15
